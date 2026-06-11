@@ -55,6 +55,64 @@ def display_cto_report(cto_analysis):
     print("-" * 20)
     print(cto_analysis["recommendation"])
 
+def display_marketing_report(marketing_analysis):
+
+    print("\n" + "=" * 50)
+    print("MARKETING ANALYSIS")
+    print("=" * 50)
+
+    print(f"\nCustomer Acquisition Score: {marketing_analysis['customer_acquisition_score']}/10")
+    print(f"Brand Differentiation Score: {marketing_analysis['brand_differentiation_score']}/10")
+    print(f"Growth Potential Score: {marketing_analysis['growth_potential_score']}/10")
+    print(f"Go-To-Market Score: {marketing_analysis['go_to_market_score']}/10")
+    print(f"Retention Score: {marketing_analysis['retention_score']}/10")
+
+    print("\nSTRENGTHS")
+    print("-" * 20)
+
+    for strength in marketing_analysis["strengths"]:
+        print(f"• {strength}")
+
+    print("\nWEAKNESSES")
+    print("-" * 20)
+
+    for weakness in marketing_analysis["weaknesses"]:
+        print(f"• {weakness}")
+
+    print("\nRECOMMENDATION")
+    print("-" * 20)
+
+    print(marketing_analysis["recommendation"])
+
+def display_product_report(product_analysis):
+
+    print("\n" + "=" * 50)
+    print("PRODUCT ANALYSIS")
+    print("=" * 50)
+
+    print(f"\nProduct-Market Fit Score: {product_analysis['product_market_fit_score']}/10")
+    print(f"User Experience Score: {product_analysis['user_experience_score']}/10")
+    print(f"Feature Differentiation Score: {product_analysis['feature_differentiation_score']}/10")
+    print(f"Retention Score: {product_analysis['retention_score']}/10")
+    print(f"Product Vision Score: {product_analysis['product_vision_score']}/10")
+
+    print("\nSTRENGTHS")
+    print("-" * 20)
+
+    for strength in product_analysis["strengths"]:
+        print(f"• {strength}")
+
+    print("\nWEAKNESSES")
+    print("-" * 20)
+
+    for weakness in product_analysis["weaknesses"]:
+        print(f"• {weakness}")
+
+    print("\nRECOMMENDATION")
+    print("-" * 20)
+
+    print(product_analysis["recommendation"])
+
 def display_boardroom_report(summary_analysis):
 
     print("\n" + "=" * 50)
