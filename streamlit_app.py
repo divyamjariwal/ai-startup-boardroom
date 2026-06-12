@@ -1,6 +1,6 @@
 import streamlit as st
 from components.agent_cards import display_agent_card
-from services.scoring import (calculate_boardroom_score,get_investment_decision)
+from services.scoring import (calculate_boardroom_score,calculate_agent_score,get_investment_decision)
 from services.pdf_generator import generate_pdf
 from agents.investor import investor_agent
 from agents.cto import cto_agent
@@ -8,6 +8,7 @@ from agents.marketing import marketing_agent
 from agents.product import product_agent
 from agents.summary import summary_agent
 from components.charts import display_radar_chart
+from components.dashboard import display_executive_dashboard
 
 st.set_page_config(
     page_title="AI Startup Boardroom",
@@ -53,6 +54,53 @@ if st.button("Analyze Startup"):
                 boardroom_context
             )
 
+            investor_score = calculate_agent_score({
+                "market": investor_analysis["market_score"],
+                "revenue": investor_analysis["revenue_score"],
+                "scalability": investor_analysis["scalability_score"],
+                "risk": 10 - investor_analysis["risk_score"]
+            })
+
+            cto_score = calculate_agent_score({
+                "technical": cto_analysis["technical_feasibility_score"],
+                "scalability": cto_analysis["scalability_score"],
+                "infrastructure": cto_analysis["infrastructure_complexity_score"],
+                "security": 10 - cto_analysis["security_risk_score"],
+                "cost": 10 - cto_analysis["development_cost_score"]
+            })
+
+            marketing_score = calculate_agent_score({
+                "acquisition": marketing_analysis["customer_acquisition_score"],
+                "brand": marketing_analysis["brand_differentiation_score"],
+                "growth": marketing_analysis["growth_potential_score"],
+                "retention": marketing_analysis["retention_score"]
+            })
+
+            product_score = calculate_agent_score({
+                "market_fit": product_analysis["product_market_fit_score"],
+                "ux": product_analysis["user_experience_score"],
+                "differentiation": product_analysis["feature_differentiation_score"],
+                "retention": product_analysis["retention_score"],
+                "vision": product_analysis["product_vision_score"]
+            })
+
+            agent_scores = {
+                "Investor": investor_score,
+                "CTO": cto_score,
+                "Marketing": marketing_score,
+                "Product": product_score
+            }
+
+            strongest_agent = max(
+                agent_scores,
+                key=agent_scores.get
+            )
+
+            weakest_agent = min(
+                agent_scores,
+                key=agent_scores.get
+            )
+
             startup_health_score = calculate_boardroom_score(
                 investor_analysis,
                 cto_analysis,
@@ -82,6 +130,35 @@ if st.button("Analyze Startup"):
             "Overall Score",
             f"{startup_health_score}/100"
         )
+        display_executive_dashboard(
+            investor_score,
+            cto_score,
+            marketing_score,
+            product_score
+        )
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.success(
+                f"""
+        Strongest Perspective
+
+        {strongest_agent}
+        ({int(agent_scores[strongest_agent])}/100)
+        """
+            )
+
+        with col2:
+            st.warning(
+                f"""
+        Weakest Perspective
+
+        {weakest_agent}
+        ({int(agent_scores[weakest_agent])}/100)
+        """
+            )
+
         st.info(investment_decision)
 
         st.progress(

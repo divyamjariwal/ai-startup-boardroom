@@ -58,3 +58,11 @@ def get_investment_decision(score):
 
     else:
         return "🔴 HIGH RISK"
+
+def calculate_agent_score(scores):
+
+    return round(
+        sum(scores.values())
+        / len(scores),
+        2
+    ) * 10
