@@ -137,33 +137,9 @@ ai-startup-boardroom/
 
 ---
 
-## Future Improvements
-
-* Financial Advisor Agent
-* Legal Advisor Agent
-* Competitor Analysis Agent
-* Startup Valuation Prediction
-* Boardroom Debate Mode
-* User Authentication
-* Cloud Deployment
-
----
-
 ## Contributors
 
 * Divyam Jariwal
-* Collaborator Name
-
----
-
-## Screenshots
-
-Add screenshots of:
-
-* Dashboard Overview
-* Agent Evaluation Results
-* Score Comparison Charts
-* Final Boardroom Verdict
 
 ---
 
