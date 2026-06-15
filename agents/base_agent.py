@@ -14,7 +14,17 @@ def repair_json(content):
 
     content = content.strip()
 
-    # Missing final closing brace
+    if content.startswith("```json"):
+        content = content.replace("```json", "")
+
+    if content.startswith("```"):
+        content = content.replace("```", "")
+
+    if content.endswith("```"):
+        content = content[:-3]
+
+    content = content.strip()
+
     if content.startswith("{") and not content.endswith("}"):
         content += "\n}"
 
@@ -52,4 +62,6 @@ def run_agent(prompt_file, user_input):
         print("\nJSON PARSING FAILED\n")
         print(content)
 
-        raise
+        raise Exception(
+            f"INVALID JSON RETURNED:\n\n{content}"
+        )

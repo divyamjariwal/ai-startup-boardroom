@@ -7,6 +7,7 @@ from agents.cto import cto_agent
 from agents.marketing import marketing_agent
 from agents.product import product_agent
 from agents.summary import summary_agent
+from agents.debate import debate_agent
 from components.charts import display_radar_chart
 from components.dashboard import display_executive_dashboard
 
@@ -50,6 +51,30 @@ if st.button("Analyze Startup"):
             PRODUCT ANALYSIS:
             {product_analysis}
             """
+            debate_analysis = debate_agent(
+                boardroom_context
+            )
+            consensus_score = int(
+                (
+                    len(debate_analysis["agreements"])
+                    /
+                    (
+                        len(debate_analysis["agreements"])
+                        +
+                        len(debate_analysis["disagreements"])
+                    )
+                )
+                * 100
+            )
+            if consensus_score >= 80:
+                consensus_status = "✅ Strong Consensus"
+
+            elif consensus_score >= 50:
+                consensus_status = "⚠️ Moderate Consensus"
+
+            else:
+                consensus_status = "🚨 Major Disagreement"
+
             summary_analysis = summary_agent(
                 boardroom_context
             )
@@ -165,12 +190,13 @@ if st.button("Analyze Startup"):
             startup_health_score / 100
         )
 
-        tab1, tab2, tab3, tab4, tab5 = st.tabs(
+        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
             [
                 "💰 Investor",
                 "⚙️ CTO",
                 "📈 Marketing",
                 "🎯 Product",
+                "🤝 Debate",
                 "🏛️ Verdict"
             ]
         )
@@ -274,10 +300,92 @@ if st.button("Analyze Startup"):
                     "Vision": product_analysis["product_vision_score"]
                 }
             )
+        
+        with tab5:
+
+            st.subheader("🤝 Boardroom Debate")
+            st.metric(
+                "Boardroom Consensus Score",
+                f"{consensus_score}%"
+            )
+
+            st.caption(consensus_status)
+
+            st.progress(
+                consensus_score / 100
+            )
+
+            col1, col2, col3, col4 = st.columns(4)
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.success(
+                    f"""
+            Consensus Level
+
+            {len(debate_analysis["agreements"])} Agreements
+            """
+                )
+
+            with col2:
+                st.warning(
+                    f"""
+            Debate Intensity
+
+            {len(debate_analysis["disagreements"])} Disagreements
+            """
+                )
+            
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.error(
+                    f"""
+            Risk Exposure
+
+            {len(debate_analysis["major_risks"])} Major Risks
+            """
+                )
+
+            with col2:
+                st.info(
+                    f"""
+            Argument Strength
+
+            {len(debate_analysis["strongest_arguments"])} Key Arguments
+            """
+                )
+
+            st.success("✅ Areas of Agreement")
+
+            for item in debate_analysis["agreements"]:
+                st.write(f"• {item}")
+
+            st.warning("⚠ Areas of Disagreement")
+
+            for item in debate_analysis["disagreements"]:
+                st.write(f"• {item}")
+
+            st.error("🚨 Major Risks")
+
+            for item in debate_analysis["major_risks"]:
+                st.write(f"• {item}")
+
+            st.info("🏆 Strongest Arguments")
+
+            for item in debate_analysis["strongest_arguments"]:
+                st.write(f"• {item}")
+
+            st.subheader("📝 Debate Summary")
+
+            st.success(
+                debate_analysis["debate_summary"]
+            )
 
         st.divider()
         
-        with tab5:
+        with tab6:
             st.subheader("🏛️ Boardroom Verdict")
 
             st.success(
