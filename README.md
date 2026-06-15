@@ -1,6 +1,84 @@
-# AI Startup Boardroom
+# 🚀 AI Startup Boardroom
 
-A multi-agent AI system that simulates a startup boardroom and evaluates startup ideas from different executive perspectives.
+An AI-powered Multi-Agent Decision Support System that simulates a startup boardroom.
+
+The platform evaluates startup ideas through multiple specialized AI agents including Investor, CTO, Marketing, Product, Debate, and Summary agents.
+
+Each agent analyzes the startup from a different perspective, participates in a boardroom-style discussion, and contributes to a final investment recommendation.
+
+The system provides:
+
+- 📊 Executive Dashboard
+- 🤝 Boardroom Debate & Consensus Analysis
+- 📈 Interactive Visualizations
+- 🏛️ Final Boardroom Verdict
+- 📄 Downloadable PDF Reports
+
+Built using Groq, Llama 3.3 70B, Streamlit, Plotly, and Multi-Agent AI Architecture.
+
+## System Architecture
+
+```text
+User Startup Idea
+        │
+        ▼
+ ┌─────────────────┐
+ │ Investor Agent  │
+ └─────────────────┘
+        │
+        ▼
+ ┌─────────────────┐
+ │   CTO Agent     │
+ └─────────────────┘
+        │
+        ▼
+ ┌─────────────────┐
+ │ Marketing Agent │
+ └─────────────────┘
+        │
+        ▼
+ ┌─────────────────┐
+ │ Product Agent   │
+ └─────────────────┘
+        │
+        ▼
+ ┌─────────────────┐
+ │  Debate Agent   │
+ └─────────────────┘
+        │
+        ▼
+ ┌─────────────────┐
+ │ Summary Agent   │
+ └─────────────────┘
+        │
+        ▼
+ Executive Dashboard
+        │
+        ▼
+ Final Verdict + PDF Report
+```
+
+
+## Screenshots
+
+### Executive Dashboard
+
+![Executive Dashboard](screenshots/dashboard.png)
+
+The Executive Dashboard provides department-wise startup evaluation scores, overall startup health score, and visual comparison charts.
+
+### Boardroom Debate
+
+![Boardroom Debate](screenshots/debate.png)
+
+The Debate Agent simulates a boardroom discussion by identifying agreements, disagreements, risks, key arguments, and a consensus score across all executive agents.
+
+### Final Verdict
+
+![Final Verdict](screenshots/verdict.png)
+
+The Summary Agent generates the final boardroom verdict and investment recommendation, along with downloadable PDF reports.
+
 
 ## Overview
 
@@ -17,6 +95,9 @@ The current version includes:
 * Marketing Agent
 * Product Agent
 * Summary Agent
+* Debate Agent
+
+The system simulates an AI-powered boardroom where multiple executive agents evaluate a startup idea, debate opportunities and risks, and generate a final investment recommendation.
 
 ---
 
@@ -74,12 +155,14 @@ Generates:
 ## Dashboard Features
 
 * Multi-Agent Startup Evaluation
+* Executive Dashboard
 * Department-wise Scoring
-* Overall Boardroom Score
-* Investment Recommendation
-* Interactive Visualizations
-* Score Comparison Charts
-* Downloadable PDF Reports
+* Boardroom Health Score
+* Investment Recommendation Engine
+* Interactive Radar Charts
+* Score Comparison Dashboard
+* Debate Agent & Consensus Analysis
+* Downloadable PDF Boardroom Reports
 
 ---
 
@@ -94,31 +177,55 @@ Generates:
 * ReportLab
 * Git
 * GitHub
+* Multi-Agent Architecture
+* Prompt Engineering
 
 ---
 
 ## Project Structure
 
 ```text
+```text
 ai-startup-boardroom/
 
 ├── agents/
+│   ├── base_agent.py
 │   ├── investor.py
 │   ├── cto.py
 │   ├── marketing.py
 │   ├── product.py
+│   ├── debate.py
 │   └── summary.py
 │
 ├── components/
-│   └── agent_cards.py
+│   ├── agent_cards.py
+│   ├── charts.py
+│   └── dashboard.py
+│
+├── prompts/
+│   ├── investor_prompt.txt
+│   ├── cto_prompt.txt
+│   ├── marketing_prompt.txt
+│   ├── product_prompt.txt
+│   ├── debate_prompt.txt
+│   └── summary_prompt.txt
 │
 ├── services/
 │   ├── scoring.py
-│   └── pdf_generator.py
+│   ├── pdf_generator.py
+│   └── report_generator.py
 │
-├── app.py
+├── screenshots/
+│   ├── dashboard.png
+│   ├── debate.png
+│   └── verdict.png
+│
+├── streamlit_app.py
 ├── requirements.txt
-└── README.md
+├── README.md
+└── .gitignore
+```
+
 ```
 
 ---
