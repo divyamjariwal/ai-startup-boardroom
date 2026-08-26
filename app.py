@@ -1,9 +1,10 @@
 from agents.investor import investor_agent
 from agents.cto import cto_agent
 from agents.summary import summary_agent
-from services.scoring import calculate_startup_score
+from services.scoring import calculate_boardroom_score
 from agents.marketing import marketing_agent
 from agents.product import product_agent
+from models.startup import StartupIdea
 from services.report_generator import (
     display_investor_report,
     display_cto_report,
@@ -12,12 +13,12 @@ from services.report_generator import (
     display_boardroom_report
 )
 
-startup_idea = """
+startup_idea = StartupIdea(description="""
 AI-powered tutoring platform for college students.
 The platform generates personalized study plans,
 practice questions, and interview preparation material.
 Revenue model is monthly subscription.
-"""
+""".strip()).description
 
 analysis = investor_agent(startup_idea)
 cto_analysis = cto_agent(startup_idea)
@@ -44,7 +45,12 @@ PRODUCT ANALYSIS:
 
 summary = summary_agent(boardroom_context)
 
-startup_health_score = calculate_startup_score(analysis)
+startup_health_score = calculate_boardroom_score(
+    analysis,
+    cto_analysis,
+    marketing_analysis,
+    product_analysis,
+)
 
 display_investor_report(
     analysis,

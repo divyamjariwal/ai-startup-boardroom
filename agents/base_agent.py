@@ -2,13 +2,24 @@ from groq import Groq
 from dotenv import load_dotenv
 import os
 import json
-# import traceback
+import logging
+from typing import TypeVar
+
+from pydantic import BaseModel, ValidationError
 
 load_dotenv()
 
 client = Groq(
     api_key=os.getenv("GROQ_API_KEY")
 )
+
+logger = logging.getLogger(__name__)
+
+AgentResultT = TypeVar("AgentResultT", bound=BaseModel)
+
+
+class AgentOutputValidationError(Exception):
+    """Raised when an LLM response does not match its required contract."""
 
 def repair_json(content):
 
@@ -30,7 +41,7 @@ def repair_json(content):
 
     return content
 
-def run_agent(prompt_file, user_input):
+def run_agent(prompt_file: str, user_input: str, result_model: type[AgentResultT]) -> AgentResultT:
 
     with open(prompt_file, "r", encoding="utf-8") as file:
         system_prompt = file.read()
@@ -54,14 +65,14 @@ def run_agent(prompt_file, user_input):
 
     try:
         content = repair_json(content)
-
-        return json.loads(content)
-
-    except json.JSONDecodeError:
-
-        print("\nJSON PARSING FAILED\n")
-        print(content)
-
-        raise Exception(
-            f"INVALID JSON RETURNED:\n\n{content}"
+        payload = json.loads(content)
+        return result_model.model_validate(payload)
+    except (json.JSONDecodeError, ValidationError) as error:
+        logger.warning(
+            "Agent response failed validation for prompt '%s': %s",
+            prompt_file,
+            error,
         )
+        raise AgentOutputValidationError(
+            "The agent returned an invalid response. Please run the analysis again."
+        ) from error

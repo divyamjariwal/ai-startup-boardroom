@@ -20,32 +20,13 @@ Analyze the opinions of all agents and identify:
 Return ONLY valid JSON in this format:
 
 {
-"agreements": [
-"agreement 1",
-"agreement 2",
-"agreement 3"
-],
-
-```
-"disagreements": [
-    "disagreement 1",
-    "disagreement 2",
-    "disagreement 3"
-],
-
-"major_risks": [
-    "risk 1",
-    "risk 2",
-    "risk 3"
-],
-
-"strongest_arguments": [
-    "argument 1",
-    "argument 2",
-    "argument 3"
-],
-
-"debate_summary": "short summary of the boardroom debate"
-```
-
+  "agreements": ["agreement 1", "agreement 2", "agreement 3"],
+  "disagreements": ["disagreement 1", "disagreement 2", "disagreement 3"],
+  "major_risks": ["risk 1", "risk 2", "risk 3"],
+  "strongest_arguments": ["argument 1", "argument 2", "argument 3"],
+  "debate_summary": "short summary of the boardroom debate"
 }
+
+Rules:
+1. Every list must contain exactly 3 concise strings.
+2. Return only valid JSON: no markdown fences or prose outside the object.

@@ -1,6 +1,13 @@
 import streamlit as st
 from components.agent_cards import display_agent_card
-from services.scoring import (calculate_boardroom_score,calculate_agent_score,get_investment_decision)
+from services.scoring import (
+    calculate_boardroom_score,
+    calculate_cto_score,
+    calculate_investor_score,
+    calculate_marketing_score,
+    calculate_product_score,
+    get_investment_decision,
+)
 from services.pdf_generator import generate_pdf
 from agents.investor import investor_agent
 from agents.cto import cto_agent
@@ -10,6 +17,7 @@ from agents.summary import summary_agent
 from agents.debate import debate_agent
 from components.charts import display_radar_chart
 from components.dashboard import display_executive_dashboard
+from models.startup import StartupIdea
 
 st.set_page_config(
     page_title="AI Startup Boardroom",
@@ -28,6 +36,8 @@ if st.button("Analyze Startup"):
 
     if startup_idea.strip():
 
+        startup_idea = StartupIdea(description=startup_idea.strip()).description
+
         with st.spinner("Boardroom is analyzing the startup..."):
 
             investor_analysis = investor_agent(startup_idea)
@@ -40,28 +50,28 @@ if st.button("Analyze Startup"):
 
             boardroom_context = f"""
             INVESTOR ANALYSIS:
-            {investor_analysis}
+            {investor_analysis.model_dump_json(indent=2)}
 
             CTO ANALYSIS:
-            {cto_analysis}
+            {cto_analysis.model_dump_json(indent=2)}
 
             MARKETING ANALYSIS:
-            {marketing_analysis}
+            {marketing_analysis.model_dump_json(indent=2)}
 
             PRODUCT ANALYSIS:
-            {product_analysis}
+            {product_analysis.model_dump_json(indent=2)}
             """
             debate_analysis = debate_agent(
                 boardroom_context
             )
             consensus_score = int(
                 (
-                    len(debate_analysis["agreements"])
+                    len(debate_analysis.agreements)
                     /
                     (
-                        len(debate_analysis["agreements"])
+                        len(debate_analysis.agreements)
                         +
-                        len(debate_analysis["disagreements"])
+                        len(debate_analysis.disagreements)
                     )
                 )
                 * 100
@@ -79,35 +89,10 @@ if st.button("Analyze Startup"):
                 boardroom_context
             )
 
-            investor_score = calculate_agent_score({
-                "market": investor_analysis["market_score"],
-                "revenue": investor_analysis["revenue_score"],
-                "scalability": investor_analysis["scalability_score"],
-                "risk": 10 - investor_analysis["risk_score"]
-            })
-
-            cto_score = calculate_agent_score({
-                "technical": cto_analysis["technical_feasibility_score"],
-                "scalability": cto_analysis["scalability_score"],
-                "infrastructure": cto_analysis["infrastructure_complexity_score"],
-                "security": 10 - cto_analysis["security_risk_score"],
-                "cost": 10 - cto_analysis["development_cost_score"]
-            })
-
-            marketing_score = calculate_agent_score({
-                "acquisition": marketing_analysis["customer_acquisition_score"],
-                "brand": marketing_analysis["brand_differentiation_score"],
-                "growth": marketing_analysis["growth_potential_score"],
-                "retention": marketing_analysis["retention_score"]
-            })
-
-            product_score = calculate_agent_score({
-                "market_fit": product_analysis["product_market_fit_score"],
-                "ux": product_analysis["user_experience_score"],
-                "differentiation": product_analysis["feature_differentiation_score"],
-                "retention": product_analysis["retention_score"],
-                "vision": product_analysis["product_vision_score"]
-            })
+            investor_score = calculate_investor_score(investor_analysis)
+            cto_score = calculate_cto_score(cto_analysis)
+            marketing_score = calculate_marketing_score(marketing_analysis)
+            product_score = calculate_product_score(product_analysis)
 
             agent_scores = {
                 "Investor": investor_score,
@@ -206,23 +191,23 @@ if st.button("Analyze Startup"):
             title="Investor Analysis",
             icon="💰",
             scores={
-                "Market": investor_analysis["market_score"],
-                "Revenue": investor_analysis["revenue_score"],
-                "Scalability": investor_analysis["scalability_score"],
-                "Risk": investor_analysis["risk_score"]
+                "Market": investor_analysis.market_score,
+                "Revenue": investor_analysis.revenue_score,
+                "Scalability": investor_analysis.scalability_score,
+                "Risk Management": investor_analysis.risk_management_score,
             },
-            strengths=investor_analysis["strengths"],
-            weaknesses=investor_analysis["weaknesses"],
-            recommendation=investor_analysis["recommendation"]
+            strengths=investor_analysis.strengths,
+            weaknesses=investor_analysis.weaknesses,
+            recommendation=investor_analysis.recommendation
             )
 
             display_radar_chart(
                 "Investor Scores",
                 {
-                    "Market": investor_analysis["market_score"],
-                    "Revenue": investor_analysis["revenue_score"],
-                    "Scalability": investor_analysis["scalability_score"],
-                    "Risk": investor_analysis["risk_score"]
+                    "Market": investor_analysis.market_score,
+                    "Revenue": investor_analysis.revenue_score,
+                    "Scalability": investor_analysis.scalability_score,
+                    "Risk Management": investor_analysis.risk_management_score,
                 }
             )
 
@@ -231,23 +216,25 @@ if st.button("Analyze Startup"):
                 title="CTO Analysis",
                 icon="⚙️",
                 scores={
-                    "Feasibility": cto_analysis["technical_feasibility_score"],
-                    "Scalability": cto_analysis["scalability_score"],
-                    "Security": cto_analysis["security_risk_score"],
-                    "Cost": cto_analysis["development_cost_score"]
+                    "Feasibility": cto_analysis.technical_feasibility_score,
+                    "Scalability": cto_analysis.scalability_score,
+                    "Infrastructure Simplicity": cto_analysis.infrastructure_simplicity_score,
+                    "Security Posture": cto_analysis.security_posture_score,
+                    "Cost Efficiency": cto_analysis.cost_efficiency_score,
                 },
-                strengths=cto_analysis["strengths"],
-                weaknesses=cto_analysis["weaknesses"],
-                recommendation=cto_analysis["recommendation"]
+                strengths=cto_analysis.strengths,
+                weaknesses=cto_analysis.weaknesses,
+                recommendation=cto_analysis.recommendation
             )
 
             display_radar_chart(
                 "CTO Scores",
                 {
-                    "Feasibility": cto_analysis["technical_feasibility_score"],
-                    "Scalability": cto_analysis["scalability_score"],
-                    "Security": cto_analysis["security_risk_score"],
-                    "Cost": cto_analysis["development_cost_score"]
+                    "Feasibility": cto_analysis.technical_feasibility_score,
+                    "Scalability": cto_analysis.scalability_score,
+                    "Infrastructure Simplicity": cto_analysis.infrastructure_simplicity_score,
+                    "Security Posture": cto_analysis.security_posture_score,
+                    "Cost Efficiency": cto_analysis.cost_efficiency_score,
                 }
             )
         
@@ -256,23 +243,25 @@ if st.button("Analyze Startup"):
                 title="Marketing Analysis",
                 icon="📈",
                 scores={
-                    "Acquisition": marketing_analysis["customer_acquisition_score"],
-                    "Brand": marketing_analysis["brand_differentiation_score"],
-                    "Growth": marketing_analysis["growth_potential_score"],
-                    "Retention": marketing_analysis["retention_score"]
+                    "Acquisition": marketing_analysis.customer_acquisition_score,
+                    "Brand": marketing_analysis.brand_differentiation_score,
+                    "Growth": marketing_analysis.growth_potential_score,
+                    "Go-To-Market": marketing_analysis.go_to_market_score,
+                    "Retention": marketing_analysis.retention_score,
                 },
-                strengths=marketing_analysis["strengths"],
-                weaknesses=marketing_analysis["weaknesses"],
-                recommendation=marketing_analysis["recommendation"]
+                strengths=marketing_analysis.strengths,
+                weaknesses=marketing_analysis.weaknesses,
+                recommendation=marketing_analysis.recommendation
             )
 
             display_radar_chart(
                 "Marketing Scores",
                 {
-                    "Acquisition": marketing_analysis["customer_acquisition_score"],
-                    "Brand": marketing_analysis["brand_differentiation_score"],
-                    "Growth": marketing_analysis["growth_potential_score"],
-                    "Retention": marketing_analysis["retention_score"]
+                    "Acquisition": marketing_analysis.customer_acquisition_score,
+                    "Brand": marketing_analysis.brand_differentiation_score,
+                    "Growth": marketing_analysis.growth_potential_score,
+                    "Go-To-Market": marketing_analysis.go_to_market_score,
+                    "Retention": marketing_analysis.retention_score,
                 }
             )
         
@@ -281,23 +270,25 @@ if st.button("Analyze Startup"):
                 title="Product Analysis",
                 icon="🎯",
                 scores={
-                    "Market Fit": product_analysis["product_market_fit_score"],
-                    "UX": product_analysis["user_experience_score"],
-                    "Retention": product_analysis["retention_score"],
-                    "Vision": product_analysis["product_vision_score"]
+                    "Market Fit": product_analysis.product_market_fit_score,
+                    "UX": product_analysis.user_experience_score,
+                    "Differentiation": product_analysis.feature_differentiation_score,
+                    "Retention": product_analysis.retention_score,
+                    "Vision": product_analysis.product_vision_score,
                 },
-                strengths=product_analysis["strengths"],
-                weaknesses=product_analysis["weaknesses"],
-                recommendation=product_analysis["recommendation"]
+                strengths=product_analysis.strengths,
+                weaknesses=product_analysis.weaknesses,
+                recommendation=product_analysis.recommendation
             )
 
             display_radar_chart(
                 "Product Scores",
                 {
-                    "Market Fit": product_analysis["product_market_fit_score"],
-                    "UX": product_analysis["user_experience_score"],
-                    "Retention": product_analysis["retention_score"],
-                    "Vision": product_analysis["product_vision_score"]
+                    "Market Fit": product_analysis.product_market_fit_score,
+                    "UX": product_analysis.user_experience_score,
+                    "Differentiation": product_analysis.feature_differentiation_score,
+                    "Retention": product_analysis.retention_score,
+                    "Vision": product_analysis.product_vision_score,
                 }
             )
         
@@ -324,7 +315,7 @@ if st.button("Analyze Startup"):
                     f"""
             Consensus Level
 
-            {len(debate_analysis["agreements"])} Agreements
+            {len(debate_analysis.agreements)} Agreements
             """
                 )
 
@@ -333,7 +324,7 @@ if st.button("Analyze Startup"):
                     f"""
             Debate Intensity
 
-            {len(debate_analysis["disagreements"])} Disagreements
+            {len(debate_analysis.disagreements)} Disagreements
             """
                 )
             
@@ -344,7 +335,7 @@ if st.button("Analyze Startup"):
                     f"""
             Risk Exposure
 
-            {len(debate_analysis["major_risks"])} Major Risks
+            {len(debate_analysis.major_risks)} Major Risks
             """
                 )
 
@@ -353,34 +344,34 @@ if st.button("Analyze Startup"):
                     f"""
             Argument Strength
 
-            {len(debate_analysis["strongest_arguments"])} Key Arguments
+            {len(debate_analysis.strongest_arguments)} Key Arguments
             """
                 )
 
             st.success("✅ Areas of Agreement")
 
-            for item in debate_analysis["agreements"]:
+            for item in debate_analysis.agreements:
                 st.write(f"• {item}")
 
             st.warning("⚠ Areas of Disagreement")
 
-            for item in debate_analysis["disagreements"]:
+            for item in debate_analysis.disagreements:
                 st.write(f"• {item}")
 
             st.error("🚨 Major Risks")
 
-            for item in debate_analysis["major_risks"]:
+            for item in debate_analysis.major_risks:
                 st.write(f"• {item}")
 
             st.info("🏆 Strongest Arguments")
 
-            for item in debate_analysis["strongest_arguments"]:
+            for item in debate_analysis.strongest_arguments:
                 st.write(f"• {item}")
 
             st.subheader("📝 Debate Summary")
 
             st.success(
-                debate_analysis["debate_summary"]
+                debate_analysis.debate_summary
             )
 
         st.divider()
@@ -389,7 +380,7 @@ if st.button("Analyze Startup"):
             st.subheader("🏛️ Boardroom Verdict")
 
             st.success(
-                summary_analysis["final_verdict"]
+                summary_analysis.final_verdict
             )
 
             with open(pdf_file, "rb") as file:

@@ -1,265 +1,125 @@
-# 🚀 AI Startup Boardroom
+# AI Startup Boardroom
 
-An AI-powered Multi-Agent Decision Support System that simulates a startup boardroom.
+AI Startup Boardroom is a Streamlit decision-support application that evaluates a startup idea from multiple executive perspectives. It combines structured LLM assessments with deterministic scoring to produce an executive dashboard, a boardroom synthesis, and a downloadable report.
 
-The platform evaluates startup ideas through multiple specialized AI agents including Investor, CTO, Marketing, Product, Debate, and Summary agents.
+The project is designed as a transparent prototype for exploring multi-agent decision support. It is not investment advice and does not perform external market research or factual claim verification.
 
-Each agent analyzes the startup from a different perspective, participates in a boardroom-style discussion, and contributes to a final investment recommendation.
+## What it does
 
-The system provides:
+Submit a startup idea and the application runs six specialised AI roles:
 
-- 📊 Executive Dashboard
-- 🤝 Boardroom Debate & Consensus Analysis
-- 📈 Interactive Visualizations
-- 🏛️ Final Boardroom Verdict
-- 📄 Downloadable PDF Reports
+- **Investor** assesses market opportunity, revenue potential, scalability, and risk management.
+- **CTO** assesses technical feasibility, scalability, infrastructure simplicity, security posture, and cost efficiency.
+- **Marketing** assesses acquisition, differentiation, growth, go-to-market readiness, and retention.
+- **Product** assesses product-market fit, user experience, differentiation, retention, and product vision.
+- **Debate Moderator** identifies areas of agreement, disagreement, major risks, and strongest arguments.
+- **Board Chairperson** turns the specialist assessments into a final boardroom verdict.
 
-Built using Groq, Llama 3.3 70B, Streamlit, Plotly, and Multi-Agent AI Architecture.
+The results are displayed as department scorecards, radar charts, a comparison chart, a consensus view, and a PDF boardroom report.
 
-## System Architecture
+## Architecture
 
 ```text
-User Startup Idea
-        │
-        ▼
- ┌─────────────────┐
- │ Investor Agent  │
- └─────────────────┘
-        │
-        ▼
- ┌─────────────────┐
- │   CTO Agent     │
- └─────────────────┘
-        │
-        ▼
- ┌─────────────────┐
- │ Marketing Agent │
- └─────────────────┘
-        │
-        ▼
- ┌─────────────────┐
- │ Product Agent   │
- └─────────────────┘
-        │
-        ▼
- ┌─────────────────┐
- │  Debate Agent   │
- └─────────────────┘
-        │
-        ▼
- ┌─────────────────┐
- │ Summary Agent   │
- └─────────────────┘
-        │
-        ▼
- Executive Dashboard
-        │
-        ▼
- Final Verdict + PDF Report
+Startup idea
+    │
+    ├── Investor ──┐
+    ├── CTO ──────┤
+    ├── Marketing ┤──► Validated specialist results ──► deterministic scoring
+    └── Product ──┘                 │                          │
+                                      ├── Debate Moderator       ├── executive dashboard
+                                      └── Board Chairperson      └── PDF report
 ```
 
+Each agent follows this execution path:
+
+```text
+Prompt file + input → Groq LLM response → JSON parsing → Pydantic validation → typed application result
+```
+
+## Reliable structured outputs
+
+Every agent output is validated with strict Pydantic schemas before it is used by the application. The validation rejects unexpected fields, missing fields, non-integer or out-of-range scores, and lists that do not contain the required number of points.
+
+All score fields use one convention: **higher is better**. For example, the technical assessment uses `security_posture_score`, `cost_efficiency_score`, and `infrastructure_simplicity_score`; a score of 10 represents the strongest outcome in each case.
+
+The boardroom score is calculated from every metric supplied by each specialist. The current investment bands are:
+
+| Boardroom score | Recommendation |
+|---:|---|
+| 85–100 | Strong investment |
+| 70–84 | Proceed with caution |
+| Below 70 | High risk |
+
+## Project structure
+
+```text
+ai-startup-boardroom/
+├── agents/                 # Shared Groq runner and role-specific wrappers
+├── components/             # Streamlit cards, charts, and dashboard components
+├── models/                 # Strict Pydantic domain and agent-result schemas
+├── prompts/                # Version-0 role instructions and JSON contracts
+├── services/               # Scoring, PDF generation, and legacy console reporting
+├── tests/                  # Schema and scoring regression tests
+├── streamlit_app.py        # Primary application entry point
+├── app.py                  # Console demonstration entry point
+├── requirements.txt
+└── runtime.txt
+```
+
+## Getting started
+
+### Prerequisites
+
+- Python 3.11
+- A Groq API key
+
+### Installation
+
+```bash
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+Create a `.env` file in the project root:
+
+```env
+GROQ_API_KEY=your_groq_api_key
+```
+
+### Run the application
+
+```bash
+streamlit run streamlit_app.py
+```
+
+## Technology stack
+
+- Python 3.11
+- Streamlit
+- Groq API with `llama-3.3-70b-versatile`
+- Pydantic v2 for schema validation
+- Plotly for interactive charts
+- ReportLab for PDF reports
+
+## Current scope and limitations
+
+The current application uses LLM-generated assessments and a deterministic scoring formula. It does not yet include citations, research retrieval, competitor intelligence, financial modelling, persistent analysis history, authentication, or multi-round agent debate. These outputs should be treated as structured decision-support material, not verified due diligence.
 
 ## Screenshots
 
-### Executive Dashboard
+### Executive dashboard
 
 ![Executive Dashboard](screenshots/dashboard.png)
 
-The Executive Dashboard provides department-wise startup evaluation scores, overall startup health score, and visual comparison charts.
-
-### Boardroom Debate
+### Boardroom debate
 
 ![Boardroom Debate](screenshots/debate.png)
 
-The Debate Agent simulates a boardroom discussion by identifying agreements, disagreements, risks, key arguments, and a consensus score across all executive agents.
-
-### Final Verdict
+### Final verdict
 
 ![Final Verdict](screenshots/verdict.png)
 
-The Summary Agent generates the final boardroom verdict and investment recommendation, along with downloadable PDF reports.
+## Author
 
-
-## Overview
-
-AI Startup Boardroom is a project that explores how multiple AI agents can collaborate to evaluate startup ideas.
-
-When a startup idea is submitted, different AI agents analyze it from their own perspective. Each agent focuses on a specific business function and provides feedback, observations, and a score. These individual evaluations are then combined to generate a final boardroom verdict and investment recommendation.
-
-The goal of this project was to understand how multi-agent AI systems can be used for decision-making tasks while gaining hands-on experience with prompt engineering, LLM orchestration, and Streamlit application development.
-
-The current version includes:
-
-* Investor Agent
-* CTO Agent
-* Marketing Agent
-* Product Agent
-* Summary Agent
-* Debate Agent
-
-The system simulates an AI-powered boardroom where multiple executive agents evaluate a startup idea, debate opportunities and risks, and generate a final investment recommendation.
-
----
-
-## Features
-
-### Investor Agent
-
-Evaluates:
-
-* Market Potential
-* Revenue Potential
-* Scalability
-* Investment Risk
-
-### CTO Agent
-
-Evaluates:
-
-* Technical Feasibility
-* Infrastructure Complexity
-* Security Risks
-* Development Cost
-
-### Marketing Agent
-
-Evaluates:
-
-* Market Demand
-* Customer Acquisition Strategy
-* Competitive Positioning
-* Growth Potential
-
-### Product Agent
-
-Evaluates:
-
-* Product-Market Fit
-* User Value Proposition
-* Product Differentiation
-* Adoption Potential
-
-### Summary Agent
-
-Generates:
-
-* Executive Summary
-* Agreements
-* Disagreements
-* Opportunities
-* Risks
-* Final Verdict
-
----
-
-## Dashboard Features
-
-* Multi-Agent Startup Evaluation
-* Executive Dashboard
-* Department-wise Scoring
-* Boardroom Health Score
-* Investment Recommendation Engine
-* Interactive Radar Charts
-* Score Comparison Dashboard
-* Debate Agent & Consensus Analysis
-* Downloadable PDF Boardroom Reports
-
----
-
-## Tech Stack
-
-* Python
-* Streamlit
-* Groq API
-* Llama 3.3 70B
-* Plotly
-* Pandas
-* ReportLab
-* Git
-* GitHub
-* Multi-Agent Architecture
-* Prompt Engineering
-
----
-
-## Project Structure
-
-```text
-```text
-ai-startup-boardroom/
-
-├── agents/
-│   ├── base_agent.py
-│   ├── investor.py
-│   ├── cto.py
-│   ├── marketing.py
-│   ├── product.py
-│   ├── debate.py
-│   └── summary.py
-│
-├── components/
-│   ├── agent_cards.py
-│   ├── charts.py
-│   └── dashboard.py
-│
-├── prompts/
-│   ├── investor_prompt.txt
-│   ├── cto_prompt.txt
-│   ├── marketing_prompt.txt
-│   ├── product_prompt.txt
-│   ├── debate_prompt.txt
-│   └── summary_prompt.txt
-│
-├── services/
-│   ├── scoring.py
-│   ├── pdf_generator.py
-│   └── report_generator.py
-│
-├── screenshots/
-│   ├── dashboard.png
-│   ├── debate.png
-│   └── verdict.png
-│
-├── streamlit_app.py
-├── requirements.txt
-├── README.md
-└── .gitignore
-```
-
-```
-
----
-
-## How It Works
-
-1. The user submits a startup idea.
-2. The Investor Agent evaluates business and investment potential.
-3. The CTO Agent evaluates technical feasibility.
-4. The Marketing Agent analyzes market opportunities.
-5. The Product Agent evaluates product viability.
-6. Individual scores are generated for each department.
-7. The system calculates an overall Boardroom Score.
-8. The Summary Agent combines all evaluations into a final verdict.
-9. Results are displayed through an interactive dashboard and can be exported as a PDF report.
-
----
-
-## Contributors
-
-* Divyam Jariwal
-
----
-
-## What I Learned
-
-While building this project, I gained hands-on experience with:
-
-* Multi-Agent AI Systems
-* Prompt Engineering
-* LLM Orchestration
-* Streamlit Development
-* Data Visualization with Plotly
-* PDF Report Generation
-* End-to-End AI Application Development
-
-This project was developed as part of my M.Tech journey in Artificial Intelligence and Machine Learning.
+Divyam Jariwal
