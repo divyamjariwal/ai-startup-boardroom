@@ -2,7 +2,7 @@ from groq import Groq
 from dotenv import load_dotenv
 import os
 import json
-import traceback
+# import traceback
 
 load_dotenv()
 
