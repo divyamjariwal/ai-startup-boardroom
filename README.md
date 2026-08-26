@@ -85,6 +85,8 @@ Create a `.env` file in the project root:
 
 ```env
 GROQ_API_KEY=your_groq_api_key
+# Optional: defaults to openai/gpt-oss-120b
+GROQ_MODEL=openai/gpt-oss-120b
 ```
 
 ### Run the application
@@ -97,7 +99,7 @@ streamlit run streamlit_app.py
 
 - Python 3.11
 - Streamlit
-- Groq API with `llama-3.3-70b-versatile`
+- Groq API with `openai/gpt-oss-120b` by default (overridable with `GROQ_MODEL`)
 - Pydantic v2 for schema validation
 - Plotly for interactive charts
 - ReportLab for PDF reports
