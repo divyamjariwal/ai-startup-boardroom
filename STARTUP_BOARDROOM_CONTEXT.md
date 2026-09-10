@@ -13,9 +13,9 @@ touching code.
    `python -m unittest discover -s tests` → expect **337 tests, all passing**.
    (Windows; the venv is Python 3.13 even though `runtime.txt` says 3.11 — that's fine.
    No ruff/mypy/black installed — the test suite is the quality gate. `py_compile` for syntax.)
-3. **Know the git state**: the last commit is Step 3. **All of Step 4 (4A–4E) is uncommitted**
-   in the working tree (untracked new files + this modified doc). Do NOT `git stash`,
-   `git checkout .`, or `git clean` — you would lose Step 4. Commit only if the user asks.
+3. **Git state**: Step 4 engines (4A–4E) are committed and pushed — commit `64eb274`
+   `feat: add Step 4 historical reference-class pipeline (4A-4E)` on `main`. Integration + QA
+   are not started. Commit/push only when the user asks.
 4. **Env**: `.env` has `GROQ_API_KEY` (used by `agents/base_agent.py`). There is **no**
    `TAVILY_API_KEY`, so `services.research.configured_provider()` returns `None` locally →
    reference-class discovery returns status `UNAVAILABLE_NO_PROVIDER` and every test injects a
@@ -234,7 +234,7 @@ build_reference_class(verification)           -> ReferenceClass         (4E, ser
 
 (4B `score_similarity` / `is_relevant` is called inside 4C.)
 
-### Step-4 file inventory (all uncommitted)
+### Step-4 file inventory (committed in `64eb274`)
 
 **New source files**
 
