@@ -18,6 +18,9 @@ from agents.debate import debate_agent
 from components.charts import display_radar_chart
 from components.dashboard import display_executive_dashboard
 from models.startup import StartupIdea
+from models.evidence import ResearchCategory
+from services.research import ResearchEngine, evidence_package
+from services.verifier import evidence_coverage, verify_claim
 
 st.set_page_config(
     page_title="AI Startup Boardroom",
@@ -40,13 +43,19 @@ if st.button("Analyze Startup"):
 
         with st.spinner("Boardroom is analyzing the startup..."):
 
-            investor_analysis = investor_agent(startup_idea)
+            research_run = ResearchEngine().run(startup_idea)
+            st.session_state["research_run"] = research_run
 
-            cto_analysis = cto_agent(startup_idea)
+            investor_analysis = investor_agent(startup_idea, evidence_package(research_run.store, [ResearchCategory.MARKET, ResearchCategory.PRICING, ResearchCategory.COMPETITORS, ResearchCategory.BUSINESS_MODEL]))
 
-            marketing_analysis = marketing_agent(startup_idea)
+            cto_analysis = cto_agent(startup_idea, evidence_package(research_run.store, [ResearchCategory.TECHNOLOGY, ResearchCategory.REGULATORY]))
 
-            product_analysis = product_agent(startup_idea)
+            marketing_analysis = marketing_agent(startup_idea, evidence_package(research_run.store, [ResearchCategory.CUSTOMERS, ResearchCategory.COMPETITORS, ResearchCategory.PRICING, ResearchCategory.INDUSTRY_TRENDS]))
+
+            product_analysis = product_agent(startup_idea, evidence_package(research_run.store, [ResearchCategory.CUSTOMERS, ResearchCategory.COMPETITORS, ResearchCategory.TECHNOLOGY]))
+
+            for analysis in (investor_analysis, cto_analysis, marketing_analysis, product_analysis):
+                analysis.verified_claims = [verify_claim(claim, research_run.store) for claim in analysis.claims]
 
             boardroom_context = f"""
             INVESTOR ANALYSIS:
@@ -175,14 +184,15 @@ if st.button("Analyze Startup"):
             startup_health_score / 100
         )
 
-        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
+        tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(
             [
                 "💰 Investor",
                 "⚙️ CTO",
                 "📈 Marketing",
                 "🎯 Product",
                 "🤝 Debate",
-                "🏛️ Verdict"
+                "🏛️ Verdict",
+                "🔎 Evidence & Sources"
             ]
         )
 
@@ -199,6 +209,7 @@ if st.button("Analyze Startup"):
             strengths=investor_analysis.strengths,
             weaknesses=investor_analysis.weaknesses,
             recommendation=investor_analysis.recommendation
+            ,verified_claims=investor_analysis.verified_claims
             )
 
             display_radar_chart(
@@ -225,6 +236,7 @@ if st.button("Analyze Startup"):
                 strengths=cto_analysis.strengths,
                 weaknesses=cto_analysis.weaknesses,
                 recommendation=cto_analysis.recommendation
+                ,verified_claims=cto_analysis.verified_claims
             )
 
             display_radar_chart(
@@ -252,6 +264,7 @@ if st.button("Analyze Startup"):
                 strengths=marketing_analysis.strengths,
                 weaknesses=marketing_analysis.weaknesses,
                 recommendation=marketing_analysis.recommendation
+                ,verified_claims=marketing_analysis.verified_claims
             )
 
             display_radar_chart(
@@ -279,6 +292,7 @@ if st.button("Analyze Startup"):
                 strengths=product_analysis.strengths,
                 weaknesses=product_analysis.weaknesses,
                 recommendation=product_analysis.recommendation
+                ,verified_claims=product_analysis.verified_claims
             )
 
             display_radar_chart(
@@ -391,6 +405,34 @@ if st.button("Analyze Startup"):
                     file_name="startup_report.pdf",
                     mime="application/pdf"
                 )
+
+        with tab7:
+            st.subheader("🔎 Evidence & Sources")
+            st.caption("Evidence Coverage measures how many agent factual claims have relevant evidence. It is not an accuracy score.")
+            st.info(research_run.message)
+            if research_run.status == "RESEARCH_UNAVAILABLE":
+                st.warning("External evidence unavailable. Claims cannot be fully verified.")
+            all_claims = [claim for analysis in (investor_analysis, cto_analysis, marketing_analysis, product_analysis) for claim in analysis.verified_claims]
+            st.metric("Evidence Coverage", f"{evidence_coverage(all_claims)}%")
+            for claim in all_claims:
+                status_icon = {"supported": "🟢", "partially_supported": "🟡", "unsupported": "🔴", "contradicted": "🔴", "uncertain": "⚪", "not_verifiable": "⚪"}[claim.status.value]
+                with st.expander(f"{status_icon} {claim.status.value.replace('_', ' ').title()}: {claim.text}"):
+                    st.write(claim.verification_notes)
+                    st.caption(f"Confidence: {claim.confidence:.0%} · Evidence: {', '.join(claim.source_evidence_ids) or 'None'}")
+                    for evidence_id in claim.source_evidence_ids:
+                        item = research_run.store.get(evidence_id)
+                        if item:
+                            st.markdown(f"[{item.title}]({item.source_url}) — {item.source_name} · {item.source_quality.value.title()}")
+                            st.write(item.excerpt)
+            st.subheader("Evidence by category")
+            for category in ResearchCategory:
+                items = research_run.store.list(category)
+                if items:
+                    with st.expander(f"{category.value.replace('_', ' ').title()} ({len(items)})"):
+                        for item in items:
+                            st.markdown(f"**{item.evidence_id} — [{item.title}]({item.source_url})**")
+                            st.caption(f"{item.source_name} · {item.source_type.value} · quality: {item.source_quality.value}")
+                            st.write(item.excerpt)
 
     else:
         st.warning("Please enter a startup idea.")
