@@ -27,6 +27,8 @@ def generate_pdf(
     product_analysis: ProductAgentResult,
     summary_analysis: SummaryResult,
     ranked_assumptions=None,
+    sensitivity_result=None,
+    validation_plan=None,
 ):
 
     pdf_path = "startup_report.pdf"
@@ -428,6 +430,156 @@ def generate_pdf(
                     styles["BodyText"]
                 )
             )
+    else:
+        content.append(
+            Paragraph(
+                "No structured assumptions were produced for this run.",
+                styles["BodyText"]
+            )
+        )
+
+    content.append(Spacer(1, 20))
+
+    # ==================================================
+    # SENSITIVITY ANALYSIS
+    # ==================================================
+
+    content.append(
+        Paragraph(
+            "Sensitivity Analysis",
+            styles["Heading2"]
+        )
+    )
+
+    content.append(
+        Paragraph(
+            "Hypothetical failure scenarios - not predictions and not probabilities. "
+            "Each row asks how the boardroom score would move if a decision-critical "
+            "assumption proved false, using a fixed penalty model.",
+            styles["BodyText"]
+        )
+    )
+
+    content.append(Spacer(1, 8))
+
+    if sensitivity_result is not None and sensitivity_result.scenarios:
+        sensitivity_rows = [
+            ["Assumption (if it proves false)", "Score: base -> scenario", "Delta", "Band change"]
+        ]
+        for scenario in sensitivity_result.scenarios:
+            if scenario.mapping_status.value == "unmapped":
+                score_cell = "unmapped"
+                delta_cell = "-"
+                band_cell = "not mapped"
+            else:
+                score_cell = (
+                    f"{scenario.current_boardroom_score} -> "
+                    f"{scenario.scenario_boardroom_score}"
+                )
+                delta_cell = str(scenario.score_delta)
+                band_cell = (
+                    f"{scenario.current_band} -> {scenario.scenario_band}"
+                    if scenario.band_changed
+                    else "no change"
+                )
+            sensitivity_rows.append([
+                Paragraph(scenario.assumption_text, styles["BodyText"]),
+                Paragraph(score_cell, styles["BodyText"]),
+                delta_cell,
+                Paragraph(band_cell, styles["BodyText"]),
+            ])
+
+        sensitivity_table = Table(
+            sensitivity_rows,
+            colWidths=[200, 110, 40, 110]
+        )
+        sensitivity_table.setStyle(
+            TableStyle([
+                ("BACKGROUND", (0,0), (-1,0), colors.grey),
+                ("TEXTCOLOR", (0,0), (-1,0), colors.whitesmoke),
+                ("GRID", (0,0), (-1,-1), 1, colors.black),
+                ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+                ("VALIGN", (0,0), (-1,-1), "TOP"),
+            ])
+        )
+        content.append(sensitivity_table)
+        content.append(Spacer(1, 8))
+
+        band_changers = [s for s in sensitivity_result.scenarios if s.band_changed]
+        if band_changers:
+            content.append(
+                Paragraph(
+                    "Failure scenarios that change the investment band: "
+                    + "; ".join(s.assumption_text for s in band_changers),
+                    styles["BodyText"]
+                )
+            )
+        else:
+            content.append(
+                Paragraph(
+                    "No modeled failure scenario changes the investment band.",
+                    styles["BodyText"]
+                )
+            )
+    else:
+        content.append(
+            Paragraph(
+                "No decision-critical assumptions were available to stress-test.",
+                styles["BodyText"]
+            )
+        )
+
+    content.append(Spacer(1, 20))
+
+    # ==================================================
+    # FOUNDER VALIDATION PLAN
+    # ==================================================
+
+    content.append(
+        Paragraph(
+            "Founder Validation Plan",
+            styles["Heading2"]
+        )
+    )
+
+    content.append(
+        Paragraph(
+            "Suggested first tests to de-risk the load-bearing assumptions. "
+            "Methods and success thresholds are suggestions, not universal benchmarks.",
+            styles["BodyText"]
+        )
+    )
+
+    content.append(Spacer(1, 8))
+
+    if validation_plan is not None and validation_plan.items:
+        validation_rows = [
+            ["#", "Priority", "Assumption", "Method", "Success signal", "Sample"]
+        ]
+        for item in validation_plan.items:
+            validation_rows.append([
+                str(item.rank),
+                item.priority.value,
+                Paragraph(item.assumption_text, styles["BodyText"]),
+                Paragraph(item.validation_method, styles["BodyText"]),
+                Paragraph(item.success_signal, styles["BodyText"]),
+                Paragraph(item.recommended_sample, styles["BodyText"]),
+            ])
+
+        validation_table = Table(
+            validation_rows,
+            colWidths=[16, 52, 104, 88, 122, 70]
+        )
+        validation_table.setStyle(
+            TableStyle([
+                ("BACKGROUND", (0,0), (-1,0), colors.grey),
+                ("TEXTCOLOR", (0,0), (-1,0), colors.whitesmoke),
+                ("GRID", (0,0), (-1,-1), 1, colors.black),
+                ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+                ("VALIGN", (0,0), (-1,-1), "TOP"),
+            ])
+        )
+        content.append(validation_table)
     else:
         content.append(
             Paragraph(

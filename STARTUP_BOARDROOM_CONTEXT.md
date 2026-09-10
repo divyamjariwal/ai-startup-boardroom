@@ -19,8 +19,11 @@ Idea
      → self-reported AssumptionDraft{impact, uncertainty, supports_metric, claim_ids}
  → deterministic scoring (evidence-adjusted) → boardroom score → investment band
  → AssumptionEngine (deterministic): dedupe → criticality → rank → evidence_status → RankedAssumption
+ → SensitivityEngine (deterministic): decision-critical assumptions → failure scenarios → SensitivityResult
+ → ValidationEngine (deterministic): ranked assumptions → category templates → ValidationPlan
  → Debate agent + Chairperson/Summary agent (narrative only)
- → Streamlit UI (tabs incl. Assumptions, radar charts) + PDF report (incl. assumptions section)
+ → Streamlit UI (tabs incl. Assumptions, Sensitivity, Validation Plan, radar charts)
+   + PDF report (incl. assumptions, sensitivity, validation sections)
 ```
 
 Stack: Python 3.11, Streamlit, Groq API, Pydantic v2 (strict), Plotly, ReportLab.
@@ -72,6 +75,67 @@ Stack: Python 3.11, Streamlit, Groq API, Pydantic v2 (strict), Plotly, ReportLab
   "Key Assumptions" section in `services/pdf_generator.py`.
 - Tests in `tests/test_assumption_engine.py` (21, all pass). Scoring is unchanged by Step 2.
 
+## 5b. Step 3 completed — Sensitivity Analysis + Founder Validation Plan
+
+Two new deterministic engines consume the existing `RankedAssumption` objects. No LLM
+call, no new dependency; `services/verifier.py` and `services/scoring.py` are untouched;
+Step-1 scoring behaviour and all thresholds are unchanged.
+
+**Sensitivity Engine** (`models/sensitivity.py`, `services/sensitivity_engine.py`):
+`run_sensitivity(investor, cto, marketing, product, current_boardroom_score, current_band,
+ranked_assumptions) -> SensitivityResult`. One **failure scenario** per decision-critical
+assumption (criticality ≥ 16). Decision-support, not prediction — no probabilities.
+- Fixed penalty model: `scenario_penalty = 0.20 * (impact/5) * (uncertainty/5)`, applied
+  only in the "assumption failed" world.
+- Ownership: the ranked assumption's normalized text is matched against each original
+  `AgentResult.assumptions` (reuses `assumption_engine._normalize`); a merged assumption
+  can own multiple specialists and is applied to each independently.
+- `supports_metric` present **and** a metric of an owning specialist → **MAPPED_METRIC**:
+  the original raw metric is read from the `AgentResult`, reduced to
+  `metric * (1 - scenario_penalty)`, and that specialist's score is recomputed with the
+  existing aggregation rule (`scoring._evidence_adjusted_score`, so evidence adjustment
+  still applies).
+- `supports_metric` absent → **MAPPED_SPECIALIST**: `scenario_specialist_score =
+  current_specialist_score * (1 - scenario_penalty)`.
+- `supports_metric` names a metric no owning specialist has, or no owner is found →
+  **UNMAPPED**: no scenario score, no `score_delta` (explicit gap over fake precision).
+- Hypothetical boardroom score = mean of the four hypothetical specialist scores, rounded
+  (mirrors `calculate_boardroom_score`); band via the existing `get_investment_decision`.
+  Scores clamped to 0–100. Stored scores/`AgentResult`s are never mutated.
+- `SensitivityScenario` carries `assumption_id/text`, impact, uncertainty, criticality,
+  `decision_critical`, `mapping_status`, `affected_specialists`, `affected_metric`,
+  `scenario_penalty`, current/scenario boardroom score, `score_delta`, current/scenario
+  band, `band_changed`, and a human-readable `note` ("If this assumption proves false…").
+
+**Validation Engine** (`models/validation.py`, `services/validation_engine.py`):
+`build_validation_plan(ranked_assumptions) -> ValidationPlan`. One `ValidationItem` per
+ranked assumption, input order preserved.
+- Priority ladder (named constants): criticality ≥ 20 `VERY_HIGH`, ≥ 16 `HIGH`, ≥ 12
+  `MEDIUM`, else `LOW` — so every decision-critical assumption is at least `HIGH`.
+- Method / success signal / recommended sample from deterministic **category-keyword
+  templates**: customer|market → discovery interviews; pricing → willingness-to-pay;
+  acquisition → landing-page experiment; retention → cohort pilot; technology|scalability
+  → prototype/load test; product → usability test; business_model → pricing experiment;
+  unknown → customer-discovery fallback. Sample sizes are named constants
+  (`SAMPLE_INTERVIEWS=10`, `SAMPLE_ACQUISITION=50`, `SAMPLE_TECH_PROTOTYPE=1`, …).
+- `test_question = "Can we verify that: <assumption>?"` (no NLP). `rationale` templated
+  from criticality + evidence status + decision-critical flag.
+
+**UI** (`streamlit_app.py`): two new tabs — **📉 Sensitivity** (current score, per-assumption
+failure-scenario score, delta, `current band → scenario band`, band-changing rows
+highlighted, "Scenario analysis — not a prediction.") and **🧪 Validation Plan** (ranked
+action list: priority, evidence status, method, test question, success signal, sample,
+rationale). Dashboard otherwise unchanged.
+
+**PDF** (`services/pdf_generator.py`): two new optional trailing params
+(`sensitivity_result`, `validation_plan`) and two new sections after "Key Assumptions" —
+"Sensitivity Analysis" (labelled *hypothetical failure scenarios, not predictions*) and
+"Founder Validation Plan". Existing callers unaffected.
+
+- Tests: `tests/test_sensitivity_engine.py` (10) + `tests/test_validation_engine.py` (16).
+  Full suite **59 tests, all pass** (33 pre-existing + 26 new). Boardroom scoring
+  unchanged by Step 3.
+
 ## 6. Current scoring rule
 
 ```
@@ -93,6 +157,12 @@ no semantic understanding: paraphrased contradictions and numeric misstatements 
 support. Assumption evidence status inherits this limitation, since it reads verified-claim
 statuses. NLI/semantic verification is deferred.
 
+The sensitivity penalty model is a deliberately simple, transparent rule
+(`0.20 * severity * uncertainty_factor`), not a calibrated forecast. Scenarios are hypothetical
+"what if this fails" illustrations, never predictions or probabilities. An assumption that cannot
+be tied to a specific metric or specialist is reported as `UNMAPPED` rather than assigned a
+fabricated delta.
+
 ## 8. Design constraints (keep these)
 
 - Lightweight architecture; no major refactors.
@@ -105,6 +175,6 @@ statuses. NLI/semantic verification is deferred.
 
 ## 9. Next step
 
-**Sensitivity Analysis + Validation Plan** — use the ranked assumptions to show how the boardroom
-outcome moves as decision-critical assumptions flip, and generate a founder-facing plan for what
-to validate first. Not started.
+**Historical Startup Discovery / Reference Class** — discover similar past startups, analyze
+their outcomes, and blend that reference-class evidence with the current market evidence
+(see the core-feature note in §8). Not started.

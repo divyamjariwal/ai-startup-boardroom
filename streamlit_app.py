@@ -22,6 +22,8 @@ from models.evidence import ResearchCategory
 from services.research import ResearchEngine, evidence_package
 from services.verifier import evidence_coverage, verify_claim
 from services.assumption_engine import rank_assumptions
+from services.sensitivity_engine import run_sensitivity
+from services.validation_engine import build_validation_plan
 
 st.set_page_config(
     page_title="AI Startup Boardroom",
@@ -141,6 +143,18 @@ if st.button("Analyze Startup"):
                 startup_health_score
             )
 
+            sensitivity_result = run_sensitivity(
+                investor_analysis,
+                cto_analysis,
+                marketing_analysis,
+                product_analysis,
+                startup_health_score,
+                investment_decision,
+                ranked_assumptions,
+            )
+
+            validation_plan = build_validation_plan(ranked_assumptions)
+
             pdf_file = generate_pdf(
                 startup_idea,
                 startup_health_score,
@@ -149,7 +163,9 @@ if st.button("Analyze Startup"):
                 marketing_analysis,
                 product_analysis,
                 summary_analysis,
-                ranked_assumptions
+                ranked_assumptions,
+                sensitivity_result,
+                validation_plan
             )
 
         st.divider()
@@ -195,7 +211,7 @@ if st.button("Analyze Startup"):
             startup_health_score / 100
         )
 
-        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(
+        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs(
             [
                 "💰 Investor",
                 "⚙️ CTO",
@@ -204,7 +220,9 @@ if st.button("Analyze Startup"):
                 "🤝 Debate",
                 "🏛️ Verdict",
                 "🔎 Evidence & Sources",
-                "🧩 Assumptions"
+                "🧩 Assumptions",
+                "📉 Sensitivity",
+                "🧪 Validation Plan"
             ]
         )
 
@@ -472,6 +490,65 @@ if st.button("Analyze Startup"):
                     else:
                         st.write(f"⚪ {heading}")
                     st.caption(detail)
+
+        with tab9:
+            st.subheader("📉 Sensitivity — Failure Scenarios")
+            st.caption(
+                "Each row asks: if this decision-critical assumption proves false, how far "
+                "does the boardroom score move? Scenario analysis — not a prediction, "
+                "and not a probability."
+            )
+            if not sensitivity_result.scenarios:
+                st.info("No decision-critical assumptions to stress-test for this run.")
+            else:
+                st.metric(
+                    "Failure scenarios that change the investment band",
+                    f"{sensitivity_result.band_changing_count} of {len(sensitivity_result.scenarios)}"
+                )
+                st.caption(
+                    f"Current boardroom score: {sensitivity_result.current_boardroom_score}/100 "
+                    f"· {sensitivity_result.current_band}"
+                )
+                for scenario in sensitivity_result.scenarios:
+                    heading = f"If this assumption proves false: {scenario.assumption_text}"
+                    if scenario.mapping_status.value == "unmapped":
+                        st.write(f"⚪ {heading}")
+                        st.caption(f"Unmapped — {scenario.note}")
+                        continue
+                    if scenario.band_changed:
+                        st.error(f"🔴 {heading}")
+                    else:
+                        st.warning(f"🟠 {heading}")
+                    st.caption(
+                        f"{scenario.current_boardroom_score}/100 → "
+                        f"{scenario.scenario_boardroom_score}/100 "
+                        f"(Δ {scenario.score_delta}) · "
+                        f"{scenario.current_band} → {scenario.scenario_band} · "
+                        f"impact {scenario.impact}/5 · uncertainty {scenario.uncertainty}/5 · "
+                        f"modeled penalty {round(scenario.scenario_penalty * 100, 1)}%"
+                    )
+                    st.caption(scenario.note)
+
+        with tab10:
+            st.subheader("🧪 Founder Validation Plan")
+            st.caption(validation_plan.disclaimer)
+            if not validation_plan.items:
+                st.info("No structured assumptions were produced for this run.")
+            else:
+                for item in validation_plan.items:
+                    st.markdown(
+                        f"**#{item.rank} · {item.priority.value} · {item.assumption_text}**"
+                    )
+                    st.caption(
+                        f"Evidence: {item.evidence_status.value.replace('_', ' ').title()} "
+                        f"· Criticality: {item.criticality}"
+                    )
+                    st.write(f"• **Method:** {item.validation_method}")
+                    st.write(f"• **Test question:** {item.test_question}")
+                    st.write(f"• **Success signal:** {item.success_signal}")
+                    st.write(f"• **Recommended sample:** {item.recommended_sample}")
+                    st.write(f"• **Why:** {item.rationale}")
+                    st.divider()
 
     else:
         st.warning("Please enter a startup idea.")
