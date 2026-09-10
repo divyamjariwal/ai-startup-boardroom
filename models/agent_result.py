@@ -3,6 +3,7 @@
 from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
+from models.claim import ClaimDraft, VerifiedClaim
 
 Score = Annotated[int, Field(ge=1, le=10)]
 ThreePoints = Annotated[list[str], Field(min_length=3, max_length=3)]
@@ -16,6 +17,10 @@ class AgentResult(BaseModel):
     strengths: ThreePoints
     weaknesses: ThreePoints
     recommendation: Annotated[str, Field(min_length=1)]
+    claims: list[ClaimDraft] = Field(default_factory=list, max_length=5)
+    verified_claims: list[VerifiedClaim] = Field(default_factory=list, max_length=5)
+    assumptions: list[Annotated[str, Field(min_length=1)]] = Field(default_factory=list, max_length=5)
+    risks: list[Annotated[str, Field(min_length=1)]] = Field(default_factory=list, max_length=5)
 
 
 class InvestorAgentResult(AgentResult):
