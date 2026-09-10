@@ -26,6 +26,7 @@ def generate_pdf(
     marketing_analysis: MarketingAgentResult,
     product_analysis: ProductAgentResult,
     summary_analysis: SummaryResult,
+    ranked_assumptions=None,
 ):
 
     pdf_path = "startup_report.pdf"
@@ -363,6 +364,74 @@ def generate_pdf(
         content.append(
             Paragraph(
                 f"⚠ {item}",
+                styles["BodyText"]
+            )
+        )
+
+    content.append(Spacer(1, 20))
+
+    # ==================================================
+    # KEY ASSUMPTIONS
+    # ==================================================
+
+    content.append(
+        Paragraph(
+            "Key Assumptions",
+            styles["Heading2"]
+        )
+    )
+
+    if ranked_assumptions:
+        assumptions_rows = [
+            ["#", "Assumption", "Impact", "Uncertainty", "Criticality", "Evidence"]
+        ]
+        for item in ranked_assumptions:
+            assumptions_rows.append([
+                str(item.rank),
+                Paragraph(item.text, styles["BodyText"]),
+                str(item.impact),
+                str(item.uncertainty),
+                str(item.criticality),
+                item.evidence_status.value.replace("_", " ").title(),
+            ])
+
+        assumptions_table = Table(
+            assumptions_rows,
+            colWidths=[18, 210, 40, 60, 55, 70]
+        )
+        assumptions_table.setStyle(
+            TableStyle([
+                ("BACKGROUND", (0,0), (-1,0), colors.grey),
+                ("TEXTCOLOR", (0,0), (-1,0), colors.whitesmoke),
+                ("GRID", (0,0), (-1,-1), 1, colors.black),
+                ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+                ("VALIGN", (0,0), (-1,-1), "TOP"),
+            ])
+        )
+
+        content.append(assumptions_table)
+        content.append(Spacer(1, 10))
+
+        critical = [item for item in ranked_assumptions if item.decision_critical]
+        if critical:
+            content.append(
+                Paragraph(
+                    "Decision-critical: "
+                    + "; ".join(f"#{item.rank} {item.text}" for item in critical),
+                    styles["BodyText"]
+                )
+            )
+        else:
+            content.append(
+                Paragraph(
+                    "No assumption reached the decision-critical threshold.",
+                    styles["BodyText"]
+                )
+            )
+    else:
+        content.append(
+            Paragraph(
+                "No structured assumptions were produced for this run.",
                 styles["BodyText"]
             )
         )

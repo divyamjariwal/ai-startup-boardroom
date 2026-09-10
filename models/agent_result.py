@@ -3,6 +3,7 @@
 from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
+from models.assumption import AssumptionDraft
 from models.claim import ClaimDraft, VerifiedClaim
 
 Score = Annotated[int, Field(ge=1, le=10)]
@@ -19,7 +20,7 @@ class AgentResult(BaseModel):
     recommendation: Annotated[str, Field(min_length=1)]
     claims: list[ClaimDraft] = Field(default_factory=list, max_length=5)
     verified_claims: list[VerifiedClaim] = Field(default_factory=list, max_length=5)
-    assumptions: list[Annotated[str, Field(min_length=1)]] = Field(default_factory=list, max_length=5)
+    assumptions: list[AssumptionDraft] = Field(default_factory=list, max_length=5)
     risks: list[Annotated[str, Field(min_length=1)]] = Field(default_factory=list, max_length=5)
 
 

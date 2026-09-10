@@ -21,6 +21,7 @@ from models.startup import StartupIdea
 from models.evidence import ResearchCategory
 from services.research import ResearchEngine, evidence_package
 from services.verifier import evidence_coverage, verify_claim
+from services.assumption_engine import rank_assumptions
 
 st.set_page_config(
     page_title="AI Startup Boardroom",
@@ -56,6 +57,15 @@ if st.button("Analyze Startup"):
 
             for analysis in (investor_analysis, cto_analysis, marketing_analysis, product_analysis):
                 analysis.verified_claims = [verify_claim(claim, research_run.store) for claim in analysis.claims]
+
+            ranked_assumptions = rank_assumptions(
+                [investor_analysis, cto_analysis, marketing_analysis, product_analysis],
+                [
+                    claim
+                    for analysis in (investor_analysis, cto_analysis, marketing_analysis, product_analysis)
+                    for claim in analysis.verified_claims
+                ],
+            )
 
             boardroom_context = f"""
             INVESTOR ANALYSIS:
@@ -138,7 +148,8 @@ if st.button("Analyze Startup"):
                 cto_analysis,
                 marketing_analysis,
                 product_analysis,
-                summary_analysis
+                summary_analysis,
+                ranked_assumptions
             )
 
         st.divider()
@@ -184,7 +195,7 @@ if st.button("Analyze Startup"):
             startup_health_score / 100
         )
 
-        tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(
+        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(
             [
                 "💰 Investor",
                 "⚙️ CTO",
@@ -192,7 +203,8 @@ if st.button("Analyze Startup"):
                 "🎯 Product",
                 "🤝 Debate",
                 "🏛️ Verdict",
-                "🔎 Evidence & Sources"
+                "🔎 Evidence & Sources",
+                "🧩 Assumptions"
             ]
         )
 
@@ -433,6 +445,33 @@ if st.button("Analyze Startup"):
                             st.markdown(f"**{item.evidence_id} — [{item.title}]({item.source_url})**")
                             st.caption(f"{item.source_name} · {item.source_type.value} · quality: {item.source_quality.value}")
                             st.write(item.excerpt)
+
+        with tab8:
+            st.subheader("🧩 Decision-Critical Assumptions")
+            st.caption(
+                "Load-bearing assumptions the startup must get right, ranked by impact × uncertainty. "
+                "Criticality (impact × uncertainty) of 16 or more is treated as decision-critical."
+            )
+            if not ranked_assumptions:
+                st.info("No structured assumptions were produced for this run.")
+            else:
+                critical = [item for item in ranked_assumptions if item.decision_critical]
+                st.metric(
+                    "Decision-Critical Assumptions",
+                    f"{len(critical)} of {len(ranked_assumptions)}"
+                )
+                for item in ranked_assumptions:
+                    heading = f"#{item.rank} — {item.text}"
+                    detail = (
+                        f"Category: {item.category} · Impact: {item.impact}/5 · "
+                        f"Uncertainty: {item.uncertainty}/5 · Criticality: {item.criticality} · "
+                        f"Evidence: {item.evidence_status.value.replace('_', ' ').title()}"
+                    )
+                    if item.decision_critical:
+                        st.error(f"🔴 {heading}")
+                    else:
+                        st.write(f"⚪ {heading}")
+                    st.caption(detail)
 
     else:
         st.warning("Please enter a startup idea.")
