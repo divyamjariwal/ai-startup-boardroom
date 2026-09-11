@@ -29,6 +29,7 @@ def generate_pdf(
     ranked_assumptions=None,
     sensitivity_result=None,
     validation_plan=None,
+    reference_class=None,
 ):
 
     pdf_path = "startup_report.pdf"
@@ -589,6 +590,84 @@ def generate_pdf(
         )
 
     content.append(Spacer(1, 20))
+
+    # ==================================================
+    # REFERENCE CLASS (HISTORICAL COMPARABLES)
+    # ==================================================
+
+    if reference_class is not None:
+        content.append(
+            Paragraph(
+                "Historical Reference Class",
+                styles["Heading2"]
+            )
+        )
+
+        content.append(
+            Paragraph(
+                "Real past/current startups similar to this idea, and what appears to have "
+                "happened to them. Descriptive evidence only, kept separate from the "
+                "boardroom score and assumptions.",
+                styles["BodyText"]
+            )
+        )
+
+        content.append(Spacer(1, 8))
+
+        if reference_class.status.value in ("unavailable_no_provider", "unavailable_no_matches"):
+            content.append(
+                Paragraph(
+                    "No reference class available for this run "
+                    f"({reference_class.status.value.replace('_', ' ')}).",
+                    styles["BodyText"]
+                )
+            )
+        else:
+            content.append(
+                Paragraph(reference_class.summary.narrative, styles["BodyText"])
+            )
+            content.append(Spacer(1, 8))
+
+            if reference_class.comparables:
+                comparable_rows = [
+                    ["Startup", "Similarity", "Outcome", "Year"]
+                ]
+                for comparable in reference_class.comparables:
+                    comparable_rows.append([
+                        Paragraph(comparable.name, styles["BodyText"]),
+                        str(comparable.similarity.total),
+                        comparable.outcome.outcome.value.replace("_", " ").title(),
+                        str(comparable.outcome.outcome_year or "-"),
+                    ])
+
+                comparable_table = Table(
+                    comparable_rows,
+                    colWidths=[190, 60, 130, 40]
+                )
+                comparable_table.setStyle(
+                    TableStyle([
+                        ("BACKGROUND", (0,0), (-1,0), colors.grey),
+                        ("TEXTCOLOR", (0,0), (-1,0), colors.whitesmoke),
+                        ("GRID", (0,0), (-1,-1), 1, colors.black),
+                        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+                        ("VALIGN", (0,0), (-1,-1), "TOP"),
+                    ])
+                )
+                content.append(comparable_table)
+                content.append(Spacer(1, 8))
+
+            if reference_class.patterns:
+                content.append(
+                    Paragraph(
+                        "Recurring patterns: "
+                        + " | ".join(
+                            f"{p.id}: {p.text}" for p in reference_class.patterns
+                        ),
+                        styles["BodyText"]
+                    )
+                )
+
+        content.append(Spacer(1, 20))
 
     # ==================================================
     # FINAL VERDICT

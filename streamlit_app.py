@@ -1,3 +1,5 @@
+import json
+
 import streamlit as st
 from components.agent_cards import display_agent_card
 from services.scoring import (
@@ -24,6 +26,10 @@ from services.verifier import evidence_coverage, verify_claim
 from services.assumption_engine import rank_assumptions
 from services.sensitivity_engine import run_sensitivity
 from services.validation_engine import build_validation_plan
+from services.idea_profile import build_idea_profile
+from services.reference_discovery import discover_reference_class
+from services.reference_outcomes import verify_outcomes
+from services.reference_class_engine import build_reference_class
 
 st.set_page_config(
     page_title="AI Startup Boardroom",
@@ -49,6 +55,12 @@ if st.button("Analyze Startup"):
             research_run = ResearchEngine().run(startup_idea)
             st.session_state["research_run"] = research_run
 
+            idea_profile = build_idea_profile(startup_idea)
+            reference_discovery = discover_reference_class(idea_profile)
+            reference_verification = verify_outcomes(reference_discovery)
+            reference_class = build_reference_class(reference_verification)
+            st.session_state["reference_class"] = reference_class
+
             investor_analysis = investor_agent(startup_idea, evidence_package(research_run.store, [ResearchCategory.MARKET, ResearchCategory.PRICING, ResearchCategory.COMPETITORS, ResearchCategory.BUSINESS_MODEL]))
 
             cto_analysis = cto_agent(startup_idea, evidence_package(research_run.store, [ResearchCategory.TECHNOLOGY, ResearchCategory.REGULATORY]))
@@ -69,18 +81,27 @@ if st.button("Analyze Startup"):
                 ],
             )
 
+            def _condensed_analysis(analysis):
+                # Debate/summary agents only need scores + interpretation, not the
+                # verbose claims/verified_claims/assumptions payloads - including those
+                # routinely pushed the combined request over the Groq per-minute token limit.
+                data = analysis.model_dump(mode="json")
+                for bulky_field in ("claims", "verified_claims", "assumptions"):
+                    data.pop(bulky_field, None)
+                return json.dumps(data, indent=2)
+
             boardroom_context = f"""
             INVESTOR ANALYSIS:
-            {investor_analysis.model_dump_json(indent=2)}
+            {_condensed_analysis(investor_analysis)}
 
             CTO ANALYSIS:
-            {cto_analysis.model_dump_json(indent=2)}
+            {_condensed_analysis(cto_analysis)}
 
             MARKETING ANALYSIS:
-            {marketing_analysis.model_dump_json(indent=2)}
+            {_condensed_analysis(marketing_analysis)}
 
             PRODUCT ANALYSIS:
-            {product_analysis.model_dump_json(indent=2)}
+            {_condensed_analysis(product_analysis)}
             """
             debate_analysis = debate_agent(
                 boardroom_context
@@ -165,7 +186,8 @@ if st.button("Analyze Startup"):
                 summary_analysis,
                 ranked_assumptions,
                 sensitivity_result,
-                validation_plan
+                validation_plan,
+                reference_class
             )
 
         st.divider()
@@ -211,7 +233,7 @@ if st.button("Analyze Startup"):
             startup_health_score / 100
         )
 
-        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs(
+        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs(
             [
                 "💰 Investor",
                 "⚙️ CTO",
@@ -222,7 +244,8 @@ if st.button("Analyze Startup"):
                 "🔎 Evidence & Sources",
                 "🧩 Assumptions",
                 "📉 Sensitivity",
-                "🧪 Validation Plan"
+                "🧪 Validation Plan",
+                "📚 Reference Class"
             ]
         )
 
@@ -549,6 +572,65 @@ if st.button("Analyze Startup"):
                     st.write(f"• **Recommended sample:** {item.recommended_sample}")
                     st.write(f"• **Why:** {item.rationale}")
                     st.divider()
+
+        with tab11:
+            st.subheader("📚 Historical Reference Class")
+            st.caption(
+                "Real past/current startups similar to this idea, and what appears to have "
+                "happened to them. Descriptive evidence only — not a prediction, and kept "
+                "separate from the boardroom score and assumptions."
+            )
+            st.info(reference_verification.message)
+
+            if reference_class.status.value in ("unavailable_no_provider", "unavailable_no_matches"):
+                st.warning(
+                    "No reference class available for this run "
+                    f"({reference_class.status.value.replace('_', ' ')})."
+                )
+            else:
+                summary = reference_class.summary
+                col1, col2, col3, col4 = st.columns(4)
+                col1.metric("Comparables found", summary.total_comparables)
+                col2.metric("Still going / exited well", summary.continued_count)
+                col3.metric("Shut down / pivoted", summary.ended_count)
+                col4.metric("Unclear outcome", summary.unclear_count)
+
+                st.write(summary.narrative)
+                st.caption(reference_class.disclaimer)
+
+                if reference_class.patterns:
+                    st.subheader("Recurring patterns")
+                    for pattern in reference_class.patterns:
+                        st.write(f"**{pattern.id}** ({pattern.confidence.value.title()}) — {pattern.text}")
+
+                if reference_class.comparables:
+                    st.subheader("Comparable startups")
+                    for comparable in reference_class.comparables:
+                        heading = (
+                            f"{comparable.name} — similarity {comparable.similarity.total}/100 · "
+                            f"{comparable.outcome.outcome.value.replace('_', ' ').title()}"
+                        )
+                        if comparable.outcome.outcome_year:
+                            heading += f" ({comparable.outcome.outcome_year})"
+                        with st.expander(heading):
+                            st.write(comparable.outcome.rationale)
+                            matched = ", ".join(
+                                dim.value for dim in comparable.similarity.matched_dimensions
+                            ) or "none"
+                            st.caption(f"Matched dimensions: {matched}")
+                            for evidence_id in comparable.evidence_ids:
+                                item = reference_class.evidence_store.get(evidence_id)
+                                if item:
+                                    st.markdown(f"[{item.title}]({item.source_url}) — {item.source_name}")
+
+                if reference_class.dropped_candidates:
+                    st.caption(
+                        "Candidates excluded: "
+                        + "; ".join(
+                            f"{dropped.name} ({dropped.reason.value.replace('_', ' ')})"
+                            for dropped in reference_class.dropped_candidates
+                        )
+                    )
 
     else:
         st.warning("Please enter a startup idea.")

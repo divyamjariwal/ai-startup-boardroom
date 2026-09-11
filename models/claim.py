@@ -18,7 +18,9 @@ class ClaimStatus(str, Enum):
 
 
 class ClaimDraft(BaseModel):
-    model_config = ConfigDict(extra="forbid", strict=True)
+    # LLM output arrives as plain JSON, so `category` is a string like "market" -
+    # strict mode would require an actual ResearchCategory instance and always fail.
+    model_config = ConfigDict(extra="forbid")
 
     claim_id: Annotated[str, Field(pattern=r"^C-[A-Z]+-\d{3}$")]
     text: Annotated[str, Field(min_length=1, max_length=600)]

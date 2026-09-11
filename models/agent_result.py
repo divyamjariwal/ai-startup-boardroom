@@ -13,7 +13,9 @@ ThreePoints = Annotated[list[str], Field(min_length=3, max_length=3)]
 class AgentResult(BaseModel):
     """Fields shared by each specialist's assessment."""
 
-    model_config = ConfigDict(extra="forbid", strict=True)
+    # LLM output arrives as plain JSON; strict mode would reject legitimate
+    # string values for nested enum fields (e.g. ClaimDraft.category).
+    model_config = ConfigDict(extra="forbid")
 
     strengths: ThreePoints
     weaknesses: ThreePoints
