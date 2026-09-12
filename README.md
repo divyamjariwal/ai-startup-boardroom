@@ -130,7 +130,7 @@ ai-startup-boardroom/
 │   ├── investor.py / cto.py / marketing.py / product.py
 │   ├── debate.py / summary.py
 ├── models/                        # Strict Pydantic schemas (the app's typed contracts)
-│   ├── startup.py, decision.py, financial.py
+│   ├── startup.py, decision.py
 │   ├── evidence.py, claim.py, agent_result.py
 │   ├── assumption.py, sensitivity.py, validation.py
 │   └── reference_class.py         #   idea profile, candidates, comparables, patterns
@@ -139,12 +139,11 @@ ai-startup-boardroom/
 │   ├── assumption_engine.py, sensitivity_engine.py, validation_engine.py
 │   ├── idea_profile.py, similarity.py, reference_discovery.py,
 │   │   reference_outcomes.py, reference_class_engine.py
-│   └── pdf_generator.py, report_generator.py
+│   └── pdf_generator.py
 ├── prompts/                       # Versioned role instructions & JSON contracts
 ├── components/                    # Streamlit cards, charts, dashboard widgets
 ├── tests/                         # Full regression suite (offline, no live network/LLM)
 ├── streamlit_app.py               # Primary application entry point (11 tabs)
-├── app.py                         # Console demonstration entry point
 ├── STARTUP_BOARDROOM_CONTEXT.md   # Full engineering history & architectural decisions
 ├── requirements.txt
 └── runtime.txt

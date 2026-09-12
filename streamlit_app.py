@@ -1,4 +1,5 @@
 import json
+import os
 
 import streamlit as st
 from components.agent_cards import display_agent_card
@@ -30,21 +31,183 @@ from services.idea_profile import build_idea_profile
 from services.reference_discovery import discover_reference_class
 from services.reference_outcomes import verify_outcomes
 from services.reference_class_engine import build_reference_class
+from components.theme import (
+    PRIMARY,
+    PRIMARY_STRONG,
+    SURFACE_ELEVATED,
+    BORDER,
+    PRIMARY_TINT,
+    PRIMARY_SHADOW,
+    CARD_SHADOW,
+    badge_html,
+)
 
 st.set_page_config(
     page_title="AI Startup Boardroom",
-    page_icon="🚀",
     layout="wide"
 )
 
-st.title("🚀 AI Startup Boardroom")
+_CSS = """
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-startup_idea = st.text_area(
-    "Enter your Startup Idea",
-    height=200
+    html, body, [class*="css"] {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    #MainMenu, footer, [data-testid="stToolbar"] { visibility: hidden; height: 0; }
+
+    .block-container {
+        padding-top: 2.25rem;
+        padding-bottom: 3rem;
+        max-width: 1180px;
+    }
+
+    /* ---------- Hero ---------- */
+    .boardroom-hero {
+        padding: 2.25rem 2.5rem;
+        margin-bottom: 1.75rem;
+        border-radius: 20px;
+        background: linear-gradient(120deg, __PRIMARY_STRONG__ 0%, __PRIMARY__ 100%);
+        color: #FFFFFF;
+        box-shadow: 0 12px 28px -14px __CARD_SHADOW__;
+    }
+    .boardroom-hero .eyebrow {
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        font-size: 0.72rem;
+        font-weight: 600;
+        opacity: 0.85;
+        margin-bottom: 0.35rem;
+    }
+    .boardroom-hero h1 {
+        font-size: 2.1rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin: 0 0 0.5rem 0;
+        color: #FFFFFF;
+    }
+    .boardroom-hero p {
+        font-size: 1rem;
+        font-weight: 400;
+        opacity: 0.92;
+        margin: 0;
+        max-width: 720px;
+        line-height: 1.5;
+    }
+
+    /* ---------- Headings ---------- */
+    h1, h2, h3 { letter-spacing: -0.01em; font-weight: 700; }
+    h2 { font-size: 1.4rem !important; }
+    h3 { font-size: 1.12rem !important; }
+
+    /* ---------- Cards / containers ---------- */
+    [data-testid="stVerticalBlockBorderWrapper"] {
+        border-radius: 16px !important;
+        background: __SURFACE_ELEVATED__;
+        border: 1px solid __BORDER__ !important;
+        box-shadow: 0 6px 18px -12px __CARD_SHADOW__;
+    }
+    div[data-testid="stExpander"] {
+        border-radius: 14px;
+        background: __SURFACE_ELEVATED__;
+        border: 1px solid __BORDER__;
+    }
+
+    /* ---------- Metrics ---------- */
+    [data-testid="stMetric"] {
+        background: __SURFACE_ELEVATED__;
+        border: 1px solid __BORDER__;
+        border-radius: 14px;
+        padding: 0.9rem 1rem 0.7rem 1rem;
+    }
+    [data-testid="stMetricLabel"] { font-weight: 600; }
+
+    /* ---------- Buttons ---------- */
+    .stButton > button {
+        border-radius: 10px;
+        font-weight: 600;
+        padding: 0.6rem 1.4rem;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        border: none;
+    }
+    .stButton > button[kind="primary"] {
+        background: __PRIMARY_STRONG__;
+        box-shadow: 0 6px 16px -6px __PRIMARY_SHADOW__;
+    }
+    .stButton > button:hover { transform: translateY(-1px); }
+    div[data-testid="stDownloadButton"] > button {
+        border-radius: 10px;
+        font-weight: 600;
+    }
+
+    /* ---------- Text input ---------- */
+    .stTextArea textarea {
+        border-radius: 12px;
+        font-size: 0.98rem;
+    }
+
+    /* ---------- Tabs ---------- */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 4px;
+        border-bottom: 1px solid __BORDER__;
+    }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 10px 10px 0 0;
+        padding: 0.55rem 1.05rem;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: __PRIMARY_TINT__;
+        color: __PRIMARY__;
+    }
+
+    /* ---------- Alerts ---------- */
+    div[data-testid="stAlert"] {
+        border-radius: 12px;
+    }
+
+    hr { margin: 1.1rem 0; opacity: 0.4; }
+    </style>
+    """
+_CSS = (
+    _CSS.replace("__PRIMARY_STRONG__", PRIMARY_STRONG)
+    .replace("__PRIMARY_SHADOW__", PRIMARY_SHADOW)
+    .replace("__PRIMARY_TINT__", PRIMARY_TINT)
+    .replace("__PRIMARY__", PRIMARY)
+    .replace("__SURFACE_ELEVATED__", SURFACE_ELEVATED)
+    .replace("__CARD_SHADOW__", CARD_SHADOW)
+    .replace("__BORDER__", BORDER)
 )
 
-if st.button("Analyze Startup"):
+st.markdown(_CSS, unsafe_allow_html=True)
+
+st.markdown(
+    """
+    <div class="boardroom-hero">
+        <div class="eyebrow">AI-Powered Decision Support</div>
+        <h1>AI Startup Boardroom</h1>
+        <p>Evaluate a startup idea the way a real board would - four specialist perspectives,
+        evidence-checked claims, ranked assumptions, and a founder-ready validation plan,
+        all in one report.</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+with st.container(border=True):
+    st.markdown("#### Describe your startup idea")
+    startup_idea = st.text_area(
+        "Enter your Startup Idea",
+        height=180,
+        placeholder="e.g. A subscription meal-kit delivery service for busy urban professionals, "
+                     "offering pre-portioned ingredients and 20-minute recipes...",
+        label_visibility="collapsed",
+    )
+    analyze_clicked = st.button("Analyze Startup", type="primary", use_container_width=True)
+
+if analyze_clicked:
 
     if startup_idea.strip():
 
@@ -119,13 +282,16 @@ if st.button("Analyze Startup"):
                 * 100
             )
             if consensus_score >= 80:
-                consensus_status = "✅ Strong Consensus"
+                consensus_status = "Strong Consensus"
+                consensus_status_key = "good"
 
             elif consensus_score >= 50:
-                consensus_status = "⚠️ Moderate Consensus"
+                consensus_status = "Moderate Consensus"
+                consensus_status_key = "warning"
 
             else:
-                consensus_status = "🚨 Major Disagreement"
+                consensus_status = "Major Disagreement"
+                consensus_status_key = "critical"
 
             summary_analysis = summary_agent(
                 boardroom_context
@@ -184,6 +350,7 @@ if st.button("Analyze Startup"):
                 marketing_analysis,
                 product_analysis,
                 summary_analysis,
+                idea_profile,
                 ranked_assumptions,
                 sensitivity_result,
                 validation_plan,
@@ -192,7 +359,7 @@ if st.button("Analyze Startup"):
 
         st.divider()
 
-        st.subheader("🚀 Startup Health Score")
+        st.subheader("Startup Health Score")
 
         st.metric(
             "Overall Score",
@@ -227,7 +394,13 @@ if st.button("Analyze Startup"):
         """
             )
 
-        st.info(investment_decision)
+        if startup_health_score >= 85:
+            decision_status = "good"
+        elif startup_health_score >= 70:
+            decision_status = "warning"
+        else:
+            decision_status = "critical"
+        st.markdown(badge_html(investment_decision, decision_status), unsafe_allow_html=True)
 
         st.progress(
             startup_health_score / 100
@@ -235,24 +408,23 @@ if st.button("Analyze Startup"):
 
         tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs(
             [
-                "💰 Investor",
-                "⚙️ CTO",
-                "📈 Marketing",
-                "🎯 Product",
-                "🤝 Debate",
-                "🏛️ Verdict",
-                "🔎 Evidence & Sources",
-                "🧩 Assumptions",
-                "📉 Sensitivity",
-                "🧪 Validation Plan",
-                "📚 Reference Class"
+                "Investor",
+                "CTO",
+                "Marketing",
+                "Product",
+                "Debate",
+                "Verdict",
+                "Evidence & Sources",
+                "Assumptions",
+                "Sensitivity",
+                "Validation Plan",
+                "Reference Class"
             ]
         )
 
         with tab1:
             display_agent_card(
             title="Investor Analysis",
-            icon="💰",
             scores={
                 "Market": investor_analysis.market_score,
                 "Revenue": investor_analysis.revenue_score,
@@ -278,7 +450,6 @@ if st.button("Analyze Startup"):
         with tab2:
             display_agent_card(
                 title="CTO Analysis",
-                icon="⚙️",
                 scores={
                     "Feasibility": cto_analysis.technical_feasibility_score,
                     "Scalability": cto_analysis.scalability_score,
@@ -306,7 +477,6 @@ if st.button("Analyze Startup"):
         with tab3:
             display_agent_card(
                 title="Marketing Analysis",
-                icon="📈",
                 scores={
                     "Acquisition": marketing_analysis.customer_acquisition_score,
                     "Brand": marketing_analysis.brand_differentiation_score,
@@ -334,7 +504,6 @@ if st.button("Analyze Startup"):
         with tab4:
             display_agent_card(
                 title="Product Analysis",
-                icon="🎯",
                 scores={
                     "Market Fit": product_analysis.product_market_fit_score,
                     "UX": product_analysis.user_experience_score,
@@ -361,13 +530,13 @@ if st.button("Analyze Startup"):
         
         with tab5:
 
-            st.subheader("🤝 Boardroom Debate")
+            st.subheader("Boardroom Debate")
             st.metric(
                 "Boardroom Consensus Score",
                 f"{consensus_score}%"
             )
 
-            st.caption(consensus_status)
+            st.markdown(badge_html(consensus_status, consensus_status_key), unsafe_allow_html=True)
 
             st.progress(
                 consensus_score / 100
@@ -415,27 +584,27 @@ if st.button("Analyze Startup"):
             """
                 )
 
-            st.success("✅ Areas of Agreement")
+            st.success("Areas of Agreement")
 
             for item in debate_analysis.agreements:
                 st.write(f"• {item}")
 
-            st.warning("⚠ Areas of Disagreement")
+            st.warning("Areas of Disagreement")
 
             for item in debate_analysis.disagreements:
                 st.write(f"• {item}")
 
-            st.error("🚨 Major Risks")
+            st.error("Major Risks")
 
             for item in debate_analysis.major_risks:
                 st.write(f"• {item}")
 
-            st.info("🏆 Strongest Arguments")
+            st.info("Strongest Arguments")
 
             for item in debate_analysis.strongest_arguments:
                 st.write(f"• {item}")
 
-            st.subheader("📝 Debate Summary")
+            st.subheader("Debate Summary")
 
             st.success(
                 debate_analysis.debate_summary
@@ -444,7 +613,7 @@ if st.button("Analyze Startup"):
         st.divider()
         
         with tab6:
-            st.subheader("🏛️ Boardroom Verdict")
+            st.subheader("Boardroom Verdict")
 
             st.success(
                 summary_analysis.final_verdict
@@ -453,14 +622,14 @@ if st.button("Analyze Startup"):
             with open(pdf_file, "rb") as file:
 
                 st.download_button(
-                    label="📄 Download Boardroom Report",
+                    label="Download Boardroom Report",
                     data=file,
-                    file_name="startup_report.pdf",
+                    file_name=os.path.basename(pdf_file),
                     mime="application/pdf"
                 )
 
         with tab7:
-            st.subheader("🔎 Evidence & Sources")
+            st.subheader("Evidence & Sources")
             st.caption("Evidence Coverage measures how many agent factual claims have relevant evidence. It is not an accuracy score.")
             st.info(research_run.message)
             if research_run.status == "RESEARCH_UNAVAILABLE":
@@ -468,8 +637,7 @@ if st.button("Analyze Startup"):
             all_claims = [claim for analysis in (investor_analysis, cto_analysis, marketing_analysis, product_analysis) for claim in analysis.verified_claims]
             st.metric("Evidence Coverage", f"{evidence_coverage(all_claims)}%")
             for claim in all_claims:
-                status_icon = {"supported": "🟢", "partially_supported": "🟡", "unsupported": "🔴", "contradicted": "🔴", "uncertain": "⚪", "not_verifiable": "⚪"}[claim.status.value]
-                with st.expander(f"{status_icon} {claim.status.value.replace('_', ' ').title()}: {claim.text}"):
+                with st.expander(f"{claim.status.value.replace('_', ' ').title()}: {claim.text}"):
                     st.write(claim.verification_notes)
                     st.caption(f"Confidence: {claim.confidence:.0%} · Evidence: {', '.join(claim.source_evidence_ids) or 'None'}")
                     for evidence_id in claim.source_evidence_ids:
@@ -488,7 +656,7 @@ if st.button("Analyze Startup"):
                             st.write(item.excerpt)
 
         with tab8:
-            st.subheader("🧩 Decision-Critical Assumptions")
+            st.subheader("Decision-Critical Assumptions")
             st.caption(
                 "Load-bearing assumptions the startup must get right, ranked by impact × uncertainty. "
                 "Criticality (impact × uncertainty) of 16 or more is treated as decision-critical."
@@ -509,13 +677,13 @@ if st.button("Analyze Startup"):
                         f"Evidence: {item.evidence_status.value.replace('_', ' ').title()}"
                     )
                     if item.decision_critical:
-                        st.error(f"🔴 {heading}")
+                        st.error(heading)
                     else:
-                        st.write(f"⚪ {heading}")
+                        st.write(heading)
                     st.caption(detail)
 
         with tab9:
-            st.subheader("📉 Sensitivity — Failure Scenarios")
+            st.subheader("Sensitivity — Failure Scenarios")
             st.caption(
                 "Each row asks: if this decision-critical assumption proves false, how far "
                 "does the boardroom score move? Scenario analysis — not a prediction, "
@@ -535,13 +703,13 @@ if st.button("Analyze Startup"):
                 for scenario in sensitivity_result.scenarios:
                     heading = f"If this assumption proves false: {scenario.assumption_text}"
                     if scenario.mapping_status.value == "unmapped":
-                        st.write(f"⚪ {heading}")
+                        st.write(heading)
                         st.caption(f"Unmapped — {scenario.note}")
                         continue
                     if scenario.band_changed:
-                        st.error(f"🔴 {heading}")
+                        st.error(heading)
                     else:
-                        st.warning(f"🟠 {heading}")
+                        st.warning(heading)
                     st.caption(
                         f"{scenario.current_boardroom_score}/100 → "
                         f"{scenario.scenario_boardroom_score}/100 "
@@ -553,7 +721,7 @@ if st.button("Analyze Startup"):
                     st.caption(scenario.note)
 
         with tab10:
-            st.subheader("🧪 Founder Validation Plan")
+            st.subheader("Founder Validation Plan")
             st.caption(validation_plan.disclaimer)
             if not validation_plan.items:
                 st.info("No structured assumptions were produced for this run.")
@@ -574,7 +742,7 @@ if st.button("Analyze Startup"):
                     st.divider()
 
         with tab11:
-            st.subheader("📚 Historical Reference Class")
+            st.subheader("Historical Reference Class")
             st.caption(
                 "Real past/current startups similar to this idea, and what appears to have "
                 "happened to them. Descriptive evidence only — not a prediction, and kept "

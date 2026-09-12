@@ -130,10 +130,10 @@ def calculate_boardroom_score(
 def get_investment_decision(score: int) -> str:
 
     if score >= 85:
-        return f"🟢 {InvestmentDecision.STRONG_INVESTMENT.value}"
+        return InvestmentDecision.STRONG_INVESTMENT.value
 
     elif score >= 70:
-        return f"🟡 {InvestmentDecision.PROCEED_WITH_CAUTION.value}"
+        return InvestmentDecision.PROCEED_WITH_CAUTION.value
 
     else:
-        return f"🔴 {InvestmentDecision.HIGH_RISK.value}"
+        return InvestmentDecision.HIGH_RISK.value

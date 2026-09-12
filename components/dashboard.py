@@ -1,6 +1,8 @@
 import streamlit as st
 import plotly.graph_objects as go
 
+from components.theme import CHART_SERIES, GRIDLINE, TEXT, TEXT_SECONDARY
+
 def display_executive_bar_chart(
     investor_score,
     cto_score,
@@ -26,20 +28,29 @@ def display_executive_bar_chart(
                 f"{int(product_score)}"
             ],
             textposition="outside",
-            width=0.35
+            width=0.35,
+            marker=dict(
+                color=CHART_SERIES,
+                line=dict(width=0),
+            ),
         )
     )
 
     fig.update_layout(
-        title="Boardroom Score Comparison",
+        title=dict(text="Boardroom Score Comparison", font=dict(size=16, family="Inter, sans-serif", color=TEXT)),
         yaxis=dict(
             range=[0, 100],
-            title="Score"
+            title="Score",
+            gridcolor=GRIDLINE,
         ),
-        xaxis_title="Departments",
+        xaxis=dict(title="Departments", showgrid=False),
         height=400,
         showlegend=False,
-        bargap = 0.6
+        bargap=0.6,
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Inter, sans-serif", color=TEXT_SECONDARY),
+        margin=dict(t=48, b=40, l=40, r=20),
     )
 
     st.plotly_chart(
@@ -54,33 +65,37 @@ def display_executive_dashboard(
     product_score
 ):
 
-    st.subheader("📊 Executive Dashboard")
+    st.subheader("Executive Dashboard")
 
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        st.metric(
-            "💰 Investor",
-            f"{int(investor_score)}/100"
-        )
+        with st.container(border=True):
+            st.metric(
+                "Investor",
+                f"{int(investor_score)}/100"
+            )
 
     with col2:
-        st.metric(
-            "⚙️ CTO",
-            f"{int(cto_score)}/100"
-        )
+        with st.container(border=True):
+            st.metric(
+                "CTO",
+                f"{int(cto_score)}/100"
+            )
 
     with col3:
-        st.metric(
-            "📈 Marketing",
-            f"{int(marketing_score)}/100"
-        )
+        with st.container(border=True):
+            st.metric(
+                "Marketing",
+                f"{int(marketing_score)}/100"
+            )
 
     with col4:
-        st.metric(
-            "🎯 Product",
-            f"{int(product_score)}/100"
-        )
+        with st.container(border=True):
+            st.metric(
+                "Product",
+                f"{int(product_score)}/100"
+            )
 
     display_executive_bar_chart(
         investor_score,

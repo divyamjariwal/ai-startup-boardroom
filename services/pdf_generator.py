@@ -1,5 +1,7 @@
+import re
 from datetime import datetime
-from reportlab.platypus import Table, TableStyle
+
+from reportlab.platypus import Table, TableStyle, PageBreak, KeepTogether
 from reportlab.lib import colors
 
 from reportlab.platypus import (
@@ -17,6 +19,32 @@ from models.agent_result import (
 )
 from models.decision import SummaryResult
 
+_SLUG_MAX_LEN = 40
+_SLUG_INVALID_CHARS = re.compile(r"[^a-z0-9-]+")
+
+
+def _build_filename(idea_profile) -> str:
+    """Derive a readable report filename from the idea's keywords/industry."""
+
+    words = list(idea_profile.keywords[:3])
+
+    if not words:
+        if idea_profile.industry and idea_profile.industry != "unspecified":
+            words = [idea_profile.industry]
+        else:
+            words = ["startup"]
+
+    slug = "-".join(words).lower().replace(" ", "-")
+    slug = _SLUG_INVALID_CHARS.sub("-", slug).strip("-")
+
+    if len(slug) > _SLUG_MAX_LEN:
+        truncated = slug[:_SLUG_MAX_LEN]
+        slug = truncated.rsplit("-", 1)[0] if "-" in truncated else truncated
+
+    date_stamp = datetime.now().strftime("%Y-%m-%d")
+
+    return f"{slug}-boardroom-report_{date_stamp}.pdf"
+
 
 def generate_pdf(
     startup_idea,
@@ -26,13 +54,14 @@ def generate_pdf(
     marketing_analysis: MarketingAgentResult,
     product_analysis: ProductAgentResult,
     summary_analysis: SummaryResult,
+    idea_profile,
     ranked_assumptions=None,
     sensitivity_result=None,
     validation_plan=None,
     reference_class=None,
 ):
 
-    pdf_path = "startup_report.pdf"
+    pdf_path = _build_filename(idea_profile)
 
     doc = SimpleDocTemplate(pdf_path)
 
@@ -44,27 +73,34 @@ def generate_pdf(
     # TITLE
     # ==================================================
 
-    content.append(
+    title_section = []
+
+    title_section.append(
         Paragraph(
             "AI Startup Boardroom Report",
             styles["Title"]
         )
     )
 
-    content.append(Spacer(1, 20))
+    title_section.append(Spacer(1, 20))
 
-    content.append(
+    title_section.append(
         Paragraph(
             f"Generated On: {datetime.now().strftime('%d-%m-%Y %H:%M')}",
             styles["BodyText"]
         )
     )
 
-    content.append(Spacer(1, 20))
+    content.append(KeepTogether(title_section))
+    content.append(Spacer(1, 15))
 
     # ==================================================
     # STARTUP IDEA
     # ==================================================
+    # Not wrapped in KeepTogether: this is a single free-text paragraph that
+    # can run up to 10,000 characters, so it must be allowed to paginate
+    # normally rather than being forced to fit (or overflow awkwardly from)
+    # one KeepTogether block.
 
     content.append(
         Paragraph(
@@ -86,33 +122,46 @@ def generate_pdf(
     # HEALTH SCORE
     # ==================================================
 
-    content.append(
+    health_section = []
+
+    health_section.append(
         Paragraph(
             "Startup Health Score",
             styles["Heading2"]
         )
     )
 
-    content.append(
+    health_section.append(
         Paragraph(
             f"{startup_health_score}/100",
             styles["BodyText"]
         )
     )
 
-    content.append(Spacer(1, 15))
+    content.append(KeepTogether(health_section))
 
     # ==================================================
     # INVESTOR ANALYSIS
     # ==================================================
+    # Each agent section below is grouped into one KeepTogether block so its
+    # heading/table/strengths/weaknesses don't split across a page boundary.
+    # No PageBreak between them: KeepTogether already pushes a block to a new
+    # page only when it doesn't fit the remaining space, so multiple small
+    # sections pack onto the same page instead of each wasting a full page.
+    # A section whose own content is taller than one full page will still
+    # spill onto a second page - that's a physical page-size limit, not a bug.
 
-    content.append(
+    content.append(PageBreak())
+
+    investor_section = []
+
+    investor_section.append(
         Paragraph(
             "Investor Analysis",
             styles["Heading2"]
         )
     )
-    
+
     investor_table = Table(
         [
             ["Metric", "Score"],
@@ -120,23 +169,24 @@ def generate_pdf(
             ["Revenue", investor_analysis.revenue_score],
             ["Scalability", investor_analysis.scalability_score],
             ["Risk Management", investor_analysis.risk_management_score]
-        ]
+        ],
+        repeatRows=1
     )
 
     investor_table.setStyle(
         TableStyle([
-            ("BACKGROUND", (0,0), (-1,0), colors.grey),
+            ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#4F46E5")),
             ("TEXTCOLOR", (0,0), (-1,0), colors.whitesmoke),
             ("GRID", (0,0), (-1,-1), 1, colors.black),
             ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold")
         ])
     )
 
-    content.append(investor_table)
+    investor_section.append(investor_table)
 
-    content.append(Spacer(1, 10))
+    investor_section.append(Spacer(1, 10))
 
-    content.append(
+    investor_section.append(
         Paragraph(
             "Strengths",
             styles["Heading3"]
@@ -144,16 +194,16 @@ def generate_pdf(
     )
 
     for item in investor_analysis.strengths:
-        content.append(
+        investor_section.append(
             Paragraph(
-                f"✓ {item}",
+                item,
                 styles["BodyText"]
             )
         )
 
-    content.append(Spacer(1, 10))
+    investor_section.append(Spacer(1, 10))
 
-    content.append(
+    investor_section.append(
         Paragraph(
             "Weaknesses",
             styles["Heading3"]
@@ -161,20 +211,22 @@ def generate_pdf(
     )
 
     for item in investor_analysis.weaknesses:
-        content.append(
+        investor_section.append(
             Paragraph(
-                f"⚠ {item}",
+                item,
                 styles["BodyText"]
             )
         )
 
-    content.append(Spacer(1, 20))
+    content.append(KeepTogether(investor_section))
 
     # ==================================================
     # CTO ANALYSIS
     # ==================================================
 
-    content.append(
+    cto_section = []
+
+    cto_section.append(
         Paragraph(
             "CTO Analysis",
             styles["Heading2"]
@@ -189,22 +241,23 @@ def generate_pdf(
             ["Infrastructure Simplicity", cto_analysis.infrastructure_simplicity_score],
             ["Security Posture", cto_analysis.security_posture_score],
             ["Cost Efficiency", cto_analysis.cost_efficiency_score]
-        ]
+        ],
+        repeatRows=1
     )
     cto_table.setStyle(
         TableStyle([
-            ("BACKGROUND", (0,0), (-1,0), colors.grey),
+            ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#4F46E5")),
             ("TEXTCOLOR", (0,0), (-1,0), colors.whitesmoke),
             ("GRID", (0,0), (-1,-1), 1, colors.black),
             ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold")
         ])
     )
 
-    content.append(cto_table)
+    cto_section.append(cto_table)
 
-    content.append(Spacer(1, 10))
+    cto_section.append(Spacer(1, 10))
 
-    content.append(
+    cto_section.append(
         Paragraph(
             "Strengths",
             styles["Heading3"]
@@ -212,16 +265,16 @@ def generate_pdf(
     )
 
     for item in cto_analysis.strengths:
-        content.append(
+        cto_section.append(
             Paragraph(
-                f"✓ {item}",
+                item,
                 styles["BodyText"]
             )
         )
 
-    content.append(Spacer(1, 10))
+    cto_section.append(Spacer(1, 10))
 
-    content.append(
+    cto_section.append(
         Paragraph(
             "Weaknesses",
             styles["Heading3"]
@@ -229,20 +282,22 @@ def generate_pdf(
     )
 
     for item in cto_analysis.weaknesses:
-        content.append(
+        cto_section.append(
             Paragraph(
-                f"⚠ {item}",
+                item,
                 styles["BodyText"]
             )
         )
 
-    content.append(Spacer(1, 20))
+    content.append(KeepTogether(cto_section))
 
     # ==================================================
     # MARKETING ANALYSIS
     # ==================================================
 
-    content.append(
+    marketing_section = []
+
+    marketing_section.append(
         Paragraph(
             "Marketing Analysis",
             styles["Heading2"]
@@ -257,21 +312,22 @@ def generate_pdf(
             ["Growth", marketing_analysis.growth_potential_score],
             ["Go-To-Market", marketing_analysis.go_to_market_score],
             ["Retention", marketing_analysis.retention_score]
-        ]
+        ],
+        repeatRows=1
     )
     marketing_table.setStyle(
         TableStyle([
-            ("BACKGROUND", (0,0), (-1,0), colors.grey),
+            ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#4F46E5")),
             ("TEXTCOLOR", (0,0), (-1,0), colors.whitesmoke),
             ("GRID", (0,0), (-1,-1), 1, colors.black),
             ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold")
         ])
     )
-    content.append(marketing_table)
+    marketing_section.append(marketing_table)
 
-    content.append(Spacer(1, 10))
+    marketing_section.append(Spacer(1, 10))
 
-    content.append(
+    marketing_section.append(
         Paragraph(
             "Strengths",
             styles["Heading3"]
@@ -279,16 +335,16 @@ def generate_pdf(
     )
 
     for item in marketing_analysis.strengths:
-        content.append(
+        marketing_section.append(
             Paragraph(
-                f"✓ {item}",
+                item,
                 styles["BodyText"]
             )
         )
 
-    content.append(Spacer(1, 10))
+    marketing_section.append(Spacer(1, 10))
 
-    content.append(
+    marketing_section.append(
         Paragraph(
             "Weaknesses",
             styles["Heading3"]
@@ -296,20 +352,22 @@ def generate_pdf(
     )
 
     for item in marketing_analysis.weaknesses:
-        content.append(
+        marketing_section.append(
             Paragraph(
-                f"⚠ {item}",
+                item,
                 styles["BodyText"]
             )
         )
 
-    content.append(Spacer(1, 20))
+    content.append(KeepTogether(marketing_section))
 
     # ==================================================
     # PRODUCT ANALYSIS
     # ==================================================
 
-    content.append(
+    product_section = []
+
+    product_section.append(
         Paragraph(
             "Product Analysis",
             styles["Heading2"]
@@ -324,22 +382,23 @@ def generate_pdf(
             ["Differentiation", product_analysis.feature_differentiation_score],
             ["Retention", product_analysis.retention_score],
             ["Vision", product_analysis.product_vision_score]
-        ]
+        ],
+        repeatRows=1
     )
     product_table.setStyle(
         TableStyle([
-            ("BACKGROUND", (0,0), (-1,0), colors.grey),
+            ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#4F46E5")),
             ("TEXTCOLOR", (0,0), (-1,0), colors.whitesmoke),
             ("GRID", (0,0), (-1,-1), 1, colors.black),
             ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold")
         ])
     )
 
-    content.append(product_table)
+    product_section.append(product_table)
 
-    content.append(Spacer(1, 10))
+    product_section.append(Spacer(1, 10))
 
-    content.append(
+    product_section.append(
         Paragraph(
             "Strengths",
             styles["Heading3"]
@@ -347,16 +406,16 @@ def generate_pdf(
     )
 
     for item in product_analysis.strengths:
-        content.append(
+        product_section.append(
             Paragraph(
-                f"✓ {item}",
+                item,
                 styles["BodyText"]
             )
         )
 
-    content.append(Spacer(1, 10))
+    product_section.append(Spacer(1, 10))
 
-    content.append(
+    product_section.append(
         Paragraph(
             "Weaknesses",
             styles["Heading3"]
@@ -364,20 +423,26 @@ def generate_pdf(
     )
 
     for item in product_analysis.weaknesses:
-        content.append(
+        product_section.append(
             Paragraph(
-                f"⚠ {item}",
+                item,
                 styles["BodyText"]
             )
         )
 
-    content.append(Spacer(1, 20))
+    content.append(KeepTogether(product_section))
 
     # ==================================================
     # KEY ASSUMPTIONS
     # ==================================================
+    # Explicit break: separates the four specialist analyses from the
+    # tabular risk/assumptions/validation/reference-class material.
 
-    content.append(
+    content.append(PageBreak())
+
+    assumptions_section = []
+
+    assumptions_section.append(
         Paragraph(
             "Key Assumptions",
             styles["Heading2"]
@@ -400,11 +465,12 @@ def generate_pdf(
 
         assumptions_table = Table(
             assumptions_rows,
-            colWidths=[18, 210, 40, 60, 55, 70]
+            colWidths=[18, 210, 40, 60, 55, 70],
+            repeatRows=1
         )
         assumptions_table.setStyle(
             TableStyle([
-                ("BACKGROUND", (0,0), (-1,0), colors.grey),
+                ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#4F46E5")),
                 ("TEXTCOLOR", (0,0), (-1,0), colors.whitesmoke),
                 ("GRID", (0,0), (-1,-1), 1, colors.black),
                 ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
@@ -412,12 +478,12 @@ def generate_pdf(
             ])
         )
 
-        content.append(assumptions_table)
-        content.append(Spacer(1, 10))
+        assumptions_section.append(assumptions_table)
+        assumptions_section.append(Spacer(1, 10))
 
         critical = [item for item in ranked_assumptions if item.decision_critical]
         if critical:
-            content.append(
+            assumptions_section.append(
                 Paragraph(
                     "Decision-critical: "
                     + "; ".join(f"#{item.rank} {item.text}" for item in critical),
@@ -425,34 +491,36 @@ def generate_pdf(
                 )
             )
         else:
-            content.append(
+            assumptions_section.append(
                 Paragraph(
                     "No assumption reached the decision-critical threshold.",
                     styles["BodyText"]
                 )
             )
     else:
-        content.append(
+        assumptions_section.append(
             Paragraph(
                 "No structured assumptions were produced for this run.",
                 styles["BodyText"]
             )
         )
 
-    content.append(Spacer(1, 20))
+    content.append(KeepTogether(assumptions_section))
 
     # ==================================================
     # SENSITIVITY ANALYSIS
     # ==================================================
 
-    content.append(
+    sensitivity_section = []
+
+    sensitivity_section.append(
         Paragraph(
             "Sensitivity Analysis",
             styles["Heading2"]
         )
     )
 
-    content.append(
+    sensitivity_section.append(
         Paragraph(
             "Hypothetical failure scenarios - not predictions and not probabilities. "
             "Each row asks how the boardroom score would move if a decision-critical "
@@ -461,7 +529,7 @@ def generate_pdf(
         )
     )
 
-    content.append(Spacer(1, 8))
+    sensitivity_section.append(Spacer(1, 8))
 
     if sensitivity_result is not None and sensitivity_result.scenarios:
         sensitivity_rows = [
@@ -492,23 +560,24 @@ def generate_pdf(
 
         sensitivity_table = Table(
             sensitivity_rows,
-            colWidths=[200, 110, 40, 110]
+            colWidths=[200, 110, 40, 110],
+            repeatRows=1
         )
         sensitivity_table.setStyle(
             TableStyle([
-                ("BACKGROUND", (0,0), (-1,0), colors.grey),
+                ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#4F46E5")),
                 ("TEXTCOLOR", (0,0), (-1,0), colors.whitesmoke),
                 ("GRID", (0,0), (-1,-1), 1, colors.black),
                 ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
                 ("VALIGN", (0,0), (-1,-1), "TOP"),
             ])
         )
-        content.append(sensitivity_table)
-        content.append(Spacer(1, 8))
+        sensitivity_section.append(sensitivity_table)
+        sensitivity_section.append(Spacer(1, 8))
 
         band_changers = [s for s in sensitivity_result.scenarios if s.band_changed]
         if band_changers:
-            content.append(
+            sensitivity_section.append(
                 Paragraph(
                     "Failure scenarios that change the investment band: "
                     + "; ".join(s.assumption_text for s in band_changers),
@@ -516,34 +585,36 @@ def generate_pdf(
                 )
             )
         else:
-            content.append(
+            sensitivity_section.append(
                 Paragraph(
                     "No modeled failure scenario changes the investment band.",
                     styles["BodyText"]
                 )
             )
     else:
-        content.append(
+        sensitivity_section.append(
             Paragraph(
                 "No decision-critical assumptions were available to stress-test.",
                 styles["BodyText"]
             )
         )
 
-    content.append(Spacer(1, 20))
+    content.append(KeepTogether(sensitivity_section))
 
     # ==================================================
     # FOUNDER VALIDATION PLAN
     # ==================================================
 
-    content.append(
+    validation_section = []
+
+    validation_section.append(
         Paragraph(
             "Founder Validation Plan",
             styles["Heading2"]
         )
     )
 
-    content.append(
+    validation_section.append(
         Paragraph(
             "Suggested first tests to de-risk the load-bearing assumptions. "
             "Methods and success thresholds are suggestions, not universal benchmarks.",
@@ -551,7 +622,7 @@ def generate_pdf(
         )
     )
 
-    content.append(Spacer(1, 8))
+    validation_section.append(Spacer(1, 8))
 
     if validation_plan is not None and validation_plan.items:
         validation_rows = [
@@ -569,41 +640,44 @@ def generate_pdf(
 
         validation_table = Table(
             validation_rows,
-            colWidths=[16, 52, 104, 88, 122, 70]
+            colWidths=[16, 52, 104, 88, 122, 70],
+            repeatRows=1
         )
         validation_table.setStyle(
             TableStyle([
-                ("BACKGROUND", (0,0), (-1,0), colors.grey),
+                ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#4F46E5")),
                 ("TEXTCOLOR", (0,0), (-1,0), colors.whitesmoke),
                 ("GRID", (0,0), (-1,-1), 1, colors.black),
                 ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
                 ("VALIGN", (0,0), (-1,-1), "TOP"),
             ])
         )
-        content.append(validation_table)
+        validation_section.append(validation_table)
     else:
-        content.append(
+        validation_section.append(
             Paragraph(
                 "No structured assumptions were produced for this run.",
                 styles["BodyText"]
             )
         )
 
-    content.append(Spacer(1, 20))
+    content.append(KeepTogether(validation_section))
 
     # ==================================================
     # REFERENCE CLASS (HISTORICAL COMPARABLES)
     # ==================================================
 
     if reference_class is not None:
-        content.append(
+        reference_section = []
+
+        reference_section.append(
             Paragraph(
                 "Historical Reference Class",
                 styles["Heading2"]
             )
         )
 
-        content.append(
+        reference_section.append(
             Paragraph(
                 "Real past/current startups similar to this idea, and what appears to have "
                 "happened to them. Descriptive evidence only, kept separate from the "
@@ -612,10 +686,10 @@ def generate_pdf(
             )
         )
 
-        content.append(Spacer(1, 8))
+        reference_section.append(Spacer(1, 8))
 
         if reference_class.status.value in ("unavailable_no_provider", "unavailable_no_matches"):
-            content.append(
+            reference_section.append(
                 Paragraph(
                     "No reference class available for this run "
                     f"({reference_class.status.value.replace('_', ' ')}).",
@@ -623,10 +697,10 @@ def generate_pdf(
                 )
             )
         else:
-            content.append(
+            reference_section.append(
                 Paragraph(reference_class.summary.narrative, styles["BodyText"])
             )
-            content.append(Spacer(1, 8))
+            reference_section.append(Spacer(1, 8))
 
             if reference_class.comparables:
                 comparable_rows = [
@@ -642,22 +716,23 @@ def generate_pdf(
 
                 comparable_table = Table(
                     comparable_rows,
-                    colWidths=[190, 60, 130, 40]
+                    colWidths=[190, 60, 130, 40],
+                    repeatRows=1
                 )
                 comparable_table.setStyle(
                     TableStyle([
-                        ("BACKGROUND", (0,0), (-1,0), colors.grey),
+                        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#4F46E5")),
                         ("TEXTCOLOR", (0,0), (-1,0), colors.whitesmoke),
                         ("GRID", (0,0), (-1,-1), 1, colors.black),
                         ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
                         ("VALIGN", (0,0), (-1,-1), "TOP"),
                     ])
                 )
-                content.append(comparable_table)
-                content.append(Spacer(1, 8))
+                reference_section.append(comparable_table)
+                reference_section.append(Spacer(1, 8))
 
             if reference_class.patterns:
-                content.append(
+                reference_section.append(
                     Paragraph(
                         "Recurring patterns: "
                         + " | ".join(
@@ -667,25 +742,33 @@ def generate_pdf(
                     )
                 )
 
-        content.append(Spacer(1, 20))
+        content.append(KeepTogether(reference_section))
 
     # ==================================================
     # FINAL VERDICT
     # ==================================================
+    # Explicit break: keeps the closing verdict from being glued to the tail
+    # end of whatever table precedes it.
 
-    content.append(
+    content.append(PageBreak())
+
+    verdict_section = []
+
+    verdict_section.append(
         Paragraph(
             "Final Boardroom Verdict",
             styles["Heading2"]
         )
     )
 
-    content.append(
+    verdict_section.append(
         Paragraph(
             summary_analysis.final_verdict,
             styles["BodyText"]
         )
     )
+
+    content.append(KeepTogether(verdict_section))
 
     # ==================================================
     # BUILD PDF
